@@ -168,10 +168,17 @@ def trainIters(trn_instances, dev_instances, encoder, decoder, print_every=100, 
             idx = 0
 
         sentence_variable = []
-        sentence_variable.append(Variable(trn_instances[idx][0]))
-        sentence_variable.append(Variable(trn_instances[idx][1]))
-        sentence_variable.append(Variable(trn_instances[idx][2]))
         target_variable = Variable(trn_instances[idx][3])
+
+        if use_cuda:
+            sentence_variable.append(Variable(trn_instances[idx][0]).cuda())
+            sentence_variable.append(Variable(trn_instances[idx][1]).cuda())
+            sentence_variable.append(Variable(trn_instances[idx][2]).cuda())
+            target_variable = target_variable.cuda()
+        else:
+            sentence_variable.append(Variable(trn_instances[idx][0]))
+            sentence_variable.append(Variable(trn_instances[idx][1]))
+            sentence_variable.append(Variable(trn_instances[idx][2]))        
 
         loss = train(sentence_variable, target_variable, encoder, decoder, encoder_optimizer, decoder_optimizer, criterion)
         print_loss_total += loss
