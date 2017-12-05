@@ -69,7 +69,8 @@ class AttnDecoderRNN(nn.Module):
         self.tag_embeds = nn.Embedding(self.tag_size, self.tag_dim)
         self.attn = nn.Linear(self.hidden_dim * 2, self.att_dim)
         self.U = Variable(torch.randn(1, self.att_dim, 1))
-
+	if use_cuda:
+		self.U = self.U.cuda()
         self.att2input = nn.Linear(self.hidden_dim + self.tag_dim, self.input_dim)
         self.lstm = nn.LSTM(self.input_dim, self.hidden_dim, num_layers= self.n_layers)
 
@@ -205,10 +206,10 @@ trn_file = "train.input"
 dev_file = "dev.input"
 tst_file = "test.input"
 pretrain_file = "sskip.100.vectors"
-trn_file = "train.input.part"
-dev_file = "dev.input.part"
-tst_file = "test.input.part"
-pretrain_file = "sskip.100.vectors.part"
+#trn_file = "train.input.part"
+#dev_file = "dev.input.part"
+#tst_file = "test.input.part"
+#pretrain_file = "sskip.100.vectors.part"
 SOS = "<SOS>"
 EOS = "<EOS>"
 UNK = "<UNK>"
@@ -280,9 +281,10 @@ print "dev size: " + str(len(dev_instances))
 tst_instances = data2instance(tst_data, [(word_to_ix,0), (pretrain_to_ix,0), (lemma_to_ix,0), (tag_to_ix, 0)])
 print "tst size: " + str(len(tst_instances))
 
+print "GPU", use_cuda
 if use_cuda:
     encoder = encoder.cuda()
     attn_decoder = attn_decoder.cuda()
 
-trainIters(trn_instances, dev_instances, encoder, attn_decoder, print_every=1, evaluate_every=1000, learning_rate=0.001)
+trainIters(trn_instances, dev_instances, encoder, attn_decoder, print_every=100, evaluate_every=1000, learning_rate=0.001)
 
