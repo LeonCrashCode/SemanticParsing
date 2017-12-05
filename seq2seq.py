@@ -83,13 +83,13 @@ class AttnDecoderRNN(nn.Module):
             embedded = self.dropout(embedded)
             self.lstm.dropout = self.dropout_p
 
-        attn_weights = []
+        attn_hiddens = []
         for i in range(len(encoder_output)):
-            attn_hidden = self.attn(torch.cat((hidden[0][0], encoder_output[i]), 1))
-            attn_weights.append(torch.bmm(attn_hidden.unsqueeze(0), self.U).view(-1))
+            attn_hiddens.append(self.attn(torch.cat((hidden[0][0], encoder_output[i]), 1)))
 
-        attn_weights = F.softmax(torch.cat(attn_weights)).view(1, 1, -1)
-        attn_applied = torch.bmm(attn_weights, encoder_output.transpose(0,1))
+        attn_hidden = torch.cat(attn_hiddens)
+        attn_weights = F.softmax(torch.bmm(attn_hidden.unsqueeze(0), self.U).view(1, -1))
+        attn_applied = torch.bmm(attn_weights.unsqueeze(0), encoder_output.transpose(0, 1))
 
         output = torch.cat((embedded[0], attn_applied[0]), 1)
         output = self.att2input(output).unsqueeze(0)
