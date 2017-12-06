@@ -174,7 +174,7 @@ def trainIters(trn_instances, dev_instances, encoder, decoder, print_every=100, 
         if iter % print_every == 0:
             print_loss_avg = print_loss_total / print_every
             print_loss_total = 0
-            print('epoch %.6f : %.6f' % (iter*1.0 / len(trn_instances), print_loss_avg))
+            print('epoch %.6f : %.10f' % (iter*1.0 / len(trn_instances), print_loss_avg))
 
 #        if iter % evaluate_every == 0:
 #            accuracy = evaluate(dev_instances, encoder, decoder)
@@ -273,5 +273,5 @@ if use_cuda:
     encoder = encoder.cuda()
     attn_decoder = attn_decoder.cuda()
 
-trainIters(trn_instances, dev_instances, encoder, attn_decoder, print_every=100, evaluate_every=1000, learning_rate=0.001)
+trainIters(trn_instances, dev_instances, encoder, attn_decoder, print_every=1000, evaluate_every=10000, learning_rate=0.001)
 
