@@ -112,6 +112,7 @@ def train(sentence_variable, target_variable, encoder, decoder, encoder_optimize
     decoder_output = decoder(decoder_input, decoder_hidden, encoder_output, train=True) 
 
     gold_output = Variable(torch.LongTensor([tag_to_ix[EOS]]))
+    gold_output = gold_output.cuda() if use_cuda else gold_output
     gold_output = torch.cat((target_variable, gold_output))
 
     loss += criterion(decoder_output, gold_output)
