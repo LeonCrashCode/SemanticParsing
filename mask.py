@@ -24,12 +24,49 @@ class Mask:
 		for hot in hots:
 			re[self.tag_to_ix[hot]] = 1
 		return re
-	def get_mask_by_string(self, string, relation_cnt, open_bracket_cnt):
-		return self.get_mask_by_idx(tags.tag_to_ix[string], relation_cnt, open_bracket_cnt)
+	def _isKVar(self, idx):
+		return (self.tags.ix_to_tag[idx] in self.tags.K_tag)
+	def _isPVar(self, idx):
+		return (self.tags.ix_to_tag[idx] in self.tags.P_tag)
+	def _isXVar(self, idx):
+		return (self.tags.ix_to_tag[idx] in self.tags.X_tag)
+	def _isEVar(self, idx):
+		return (self.tags.ix_to_tag[idx] in self.tags.E_tag)
+	def _isSVar(self, idx):
+		return (self.tags.ix_to_tag[idx] in self.tags.S_tag)
+	def _isVar(self, idx):
+		return (self._isPVar(idx) or self._isKVar(idx) or self._isXVar(idx) or self.is_EVar(idx) or self.is_SVar(idx))
+	
+	def _isReduce(self, idx):
+		return (self.tags.ix_to_tag[idx] == self.tags.reduces)
 
-	def get_mask_by_idx(self, idx, relation_cnt, open_bracket_cnt):
-		if self.tags.isSOS(idx):
-			return self.drs
-		elif self.tags.issdrs(idx) or self.tags.isdrs(idx):
-			return self.open_bracket
+	def _isRelation(self, idx):
+		return (self.tags.ix_to_tag[idx][-1] == '(')
+		
+	def get_mask(self, trn_sentences):
+    	trn_masks = []
+    	for instance in trn_instances:
+        	instance_masks = []
+
+        	relation_cnt = 0
+        	open_bracket = 0
+        	stack_tags = [[self.tags.SOS,0]]
+
+        	instance_masks.append(self._get_mask(relation_cnt, open_bracket, stack_tags))
+        	target_side = instance[-1].view(-1).data.tolist()
+        	for idx in target_side:
+        		if self._isVar(idx)
+        			stack_tags[-1][1] += 1
+        		elif self._isReduce(idx):
+        			stack_tags = stack_tags[:-1]
+        			stack_tags[-1][1] += 1
+        			open_bracket -= 1
+        		elif self._isRelation(idx):
+        			stack_tags.append([self.tags.ix_to_tag[idx], 0])
+        			relation_cnt += 1
+            	instanec_masks.append(self._get_mask(relation_cnt, open_bracket, stack_tags))
+            trn_masks.append(instance_masks)
+        return trn_masks
+
+	def _get_mask(self, relation_cnt, open_bracket, stack_tags)
 			

@@ -21,6 +21,9 @@ class Tag:
 		self.rel_timex = "timex("
 		self.rel_card = "card("
 
+		self.K_relation = list()
+		self.P_relation = list()
+
 		self.K_tag = list()
 		self.P_tag = list()
 		self.X_tag = list()
@@ -59,6 +62,11 @@ class Tag:
 					assert False, "unrecogized type"
 		self.fr.close()
 
+		for tag in self.K_tag:
+			self.K_relation.append(tag+"(")
+		for tag in self.P_tag:
+			self.P_relation.append(tag+"(")
+
 		self.tag_to_ix = {SOS:0, EOS:1, self.reduce:2}
 		self.ix_to_tag = ["<SOS>", "<EOS>", self.reduce]
 
@@ -70,6 +78,14 @@ class Tag:
 			self.tag_to_ix[tag] = len(self.tag_to_ix)
 			self.ix_to_tag.append(tag)
 
+		for tag in self.K_relation:
+			self.tag_to_ix[tag] = len(self.tag_to_ix)
+			self.ix_to_tag.append(tag)
+
+		for tag in self.P_relation:
+			self.tag_to_ix[tag] = len(self.tag_to_ix)
+			self.ix_to_tag.append(tag)
+			
 		for tag in self.K_tag:
     		self.tag_to_ix[tag] = len(self.tag_to_ix)
     		self.ix_to_tag.append(tag)

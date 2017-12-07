@@ -184,20 +184,8 @@ def trainIters(trn_instances, dev_instances, encoder, decoder, print_every=100, 
 
     criterion = nn.NLLLoss()
 
-    global mask_info
-    trn_masks = []
-    for instance in trn_instances:
-        instance_masks = []
-        relation_cnt = 0
-        open_bracket = 0
-        stack_tags = [mask_info.tags.SOS]
-
-        instance_masks.append(mask_info.get_mask_by_string(SOS, relation_cnt, open_bracket))
-        target_side = instance[-1].view(-1).data.tolist()
-        for idx in target_side:
-            instanec_masks.append(mask_info.get_mask_by_idx(idx, relation_cnt, open_bracket))
-            
-
+    trn_masks = mask_info.get_mask(trn_instances)
+    
     idx = -1
     iter = 0
     while True:
