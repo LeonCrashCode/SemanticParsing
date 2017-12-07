@@ -190,7 +190,8 @@ def trainIters(trn_instances, dev_instances, encoder, decoder, print_every=100, 
         instance_masks = []
         relation_cnt = 0
         open_bracket = 0
-        stack_tags = [SOS]
+        stack_tags = [mask_info.tags.SOS]
+
         instance_masks.append(mask_info.get_mask_by_string(SOS, relation_cnt, open_bracket))
         target_side = instance[-1].view(-1).data.tolist()
         for idx in target_side:

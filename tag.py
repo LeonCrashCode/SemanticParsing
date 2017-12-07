@@ -2,9 +2,7 @@
 class Tag:
 	def __init__(self, filename):
 		self.filename = filename
-		self.types = ["SOS", "EOS", "REDUCE", "SDRS", "DRS", "K", "P", "K_RELATION", "SIX", "K_TAG", "P_TAG", "X_TAG", "E_TAG", "S_TAG"]
-		self.tag_dict = {}
-		
+
 		self.SOS = "<SOS>"
 		self.EOS = "<EOS>"
 		self.reduce = ")"
@@ -22,17 +20,6 @@ class Tag:
 		self.special_relation = ["timex(", "card("]
 		self.rel_timex = "timex("
 		self.rel_card = "card("
-
-		self.tag_to_ix = {SOS:0, EOS:1, self.reduce:2}
-		self.ix_to_tag = ["<SOS>", "<EOS>", self.reduce]
-
-		for tag in self.special_tag:
-			self.tag_to_ix[tag] = len(self.tag_to_ix)
-			self.ix_to_tag.append(tag)
-
-		for tag in self.special_relation:
-			self.tag_to_ix[tag] = len(self.tag_to_ix)
-			self.ix_to_tag.append(tag)
 
 		self.K_tag = list()
 		self.P_tag = list()
@@ -72,6 +59,17 @@ class Tag:
 					assert False, "unrecogized type"
 		self.fr.close()
 
+		self.tag_to_ix = {SOS:0, EOS:1, self.reduce:2}
+		self.ix_to_tag = ["<SOS>", "<EOS>", self.reduce]
+
+		for tag in self.special_tag:
+			self.tag_to_ix[tag] = len(self.tag_to_ix)
+			self.ix_to_tag.append(tag)
+
+		for tag in self.special_relation:
+			self.tag_to_ix[tag] = len(self.tag_to_ix)
+			self.ix_to_tag.append(tag)
+
 		for tag in self.K_tag:
     		self.tag_to_ix[tag] = len(self.tag_to_ix)
     		self.ix_to_tag.append(tag)
@@ -98,8 +96,6 @@ class Tag:
     		self.tag_to_ix[tag] = len(self.tag_to_ix)
     		self.ix_to_tag.append(tag)
 
-	def open_one_bracket(self, idx):
-		if ix
 	def _readblock(self, blocksize):
 		temp = []
 		for i in range(blocksize):
