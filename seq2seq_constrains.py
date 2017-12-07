@@ -241,6 +241,12 @@ def trainIters(trn_instances, dev_instances, encoder, decoder, print_every=100, 
 
         if iter % evaluate_every == 0:
             evaluate([trn_instances[0]], encoder, decoder)
+	    evaluate([trn_instances[1]], encoder, decoder)
+	    evaluate([trn_instances[2]], encoder, decoder)
+	    evaluate([trn_instances[3]], encoder, decoder)
+	    evaluate([trn_instances[4]], encoder, decoder)
+	    evaluate([trn_instances[5]], encoder, decoder)
+	    evaluate([trn_instances[6]], encoder, decoder)
 
 def evaluate(instances, encoder, decoder):
     for instance in instances:
