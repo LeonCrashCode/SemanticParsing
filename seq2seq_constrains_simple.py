@@ -150,6 +150,9 @@ def train(sentence_variable, target_variable, gold_variable, encoder, decoder, e
     gold_variable = torch.cat((gold_variable, Variable(torch.LongTensor([decoder.tags_info.tag_to_ix[EOS]]))))
     gold_variable = gold_variable.cuda() if use_cuda else gold_variable
 
+    print decoder_output
+    print gold_variable
+
     loss += criterion(decoder_output, gold_variable)
    
     loss.backward()
@@ -213,7 +216,6 @@ def trainIters(trn_instances, dev_instances, encoder, decoder, print_every=100, 
             else:
                 gold_list.append(x[1])
         gold_variable = Variable(torch.LongTensor(gold_list))
-
         if use_cuda:
             sentence_variable.append(Variable(trn_instances[idx][0]).cuda())
             sentence_variable.append(Variable(trn_instances[idx][1]).cuda())
@@ -292,6 +294,7 @@ for sentence, _, lemmas, tags in trn_data:
 tags_info = Tag(tag_info_file, lemma_to_ix.keys())
 SOS = tags_info.SOS
 EOS = tags_info.EOS
+
 ##############################################
 ##
 #mask_info = Mask(tags)

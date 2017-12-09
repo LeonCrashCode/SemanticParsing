@@ -16,8 +16,8 @@ class Tag:
 		self.SOS = "<SOS>"
 		self.EOS = "<EOS>"
 		self.UNK = "<UNK>"
-		self.CARD = "CARD"
-		self.TIME = "TIME"
+		self.CARD = "CARD_NUMBER"
+		self.TIME = "TIME_NUMBER"
 		self.reduce = ")"
 		
 		self.act_rel_k = "GEN_REL_K"
@@ -31,23 +31,23 @@ class Tag:
 		self.act_rel_global = "REL_GLOBAL"
 		self.act_rel_local = "REL_LOCAL"
 
-		self.rel_sdrs = "sdrs("
-		self.rel_drs = "drs("
-		self.rel_not = "not("
-		self.rel_nec = "nec("
-		self.rel_pos = "pos("
-		self.rel_or = "or("
-		self.rel_duplex = "duplex("
-		self.rel_imp = "imp("
-		self.rel_timex = "timex("
-		self.rel_card = "card("
+		self.rel_sdrs = "SDRS("
+		self.rel_drs = "DRS("
+		self.rel_not = "NOT("
+		self.rel_nec = "NEC("
+		self.rel_pos = "POS("
+		self.rel_or = "OR("
+		self.rel_duplex = "DUPLEX("
+		self.rel_imp = "IMP("
+		self.rel_timex = "TIMEX("
+		self.rel_card = "CARD("
 
 		self.relation_global = list()
 		for line in open(filename):
 			line = line.strip()
 			if line[0] == "#":
 				continue
-			self.relation_global.append(line.strip())
+			self.relation_global.append(line.strip().upper())
 		
 		self.tag_to_ix = {self.SOS:0, self.EOS:1, self.UNK:2, self.CARD:3, self.TIME:4}
 		self.ix_to_tag = [self.SOS, self.EOS, self.UNK, self.CARD, self.TIME]
@@ -87,33 +87,33 @@ class Tag:
 
 		self.k_rel_start = len(self.tag_to_ix)
 		for i in range(self.MAX_KV):
-			self.tag_to_ix["k"+str(i+1)+"("] = len(self.tag_to_ix)
-			self.ix_to_tag.append("k"+str(i+1)+"(")
+			self.tag_to_ix["K"+str(i+1)+"("] = len(self.tag_to_ix)
+			self.ix_to_tag.append("K"+str(i+1)+"(")
 		self.p_rel_start = len(self.tag_to_ix)
 		for i in range(self.MAX_PV):
-			self.tag_to_ix["p"+str(i+1)+"("] = len(self.tag_to_ix)
-			self.ix_to_tag.append("p"+str(i+1)+"(")
+			self.tag_to_ix["P"+str(i+1)+"("] = len(self.tag_to_ix)
+			self.ix_to_tag.append("P"+str(i+1)+"(")
 		self.k_tag_start = len(self.tag_to_ix)
 		for i in range(self.MAX_KV):
-			self.tag_to_ix["k"+str(i+1)] = len(self.tag_to_ix)
-			self.ix_to_tag.append("k"+str(i+1))
+			self.tag_to_ix["K"+str(i+1)] = len(self.tag_to_ix)
+			self.ix_to_tag.append("K"+str(i+1))
 		self.p_tag_start = len(self.tag_to_ix)
 		for i in range(self.MAX_PV):
-			self.tag_to_ix["p"+str(i+1)] = len(self.tag_to_ix)
-			self.ix_to_tag.append("p"+str(i+1))
+			self.tag_to_ix["P"+str(i+1)] = len(self.tag_to_ix)
+			self.ix_to_tag.append("P"+str(i+1))
 		self.x_tag_start = len(self.tag_to_ix)
 		for i in range(self.MAX_XV):
-			self.tag_to_ix["x"+str(i+1)] = len(self.tag_to_ix)
-			self.ix_to_tag.append("x"+str(i+1))
+			self.tag_to_ix["X"+str(i+1)] = len(self.tag_to_ix)
+			self.ix_to_tag.append("X"+str(i+1))
 		self.e_tag_start = len(self.tag_to_ix)
 		for i in range(self.MAX_EV):
-			self.tag_to_ix["e"+str(i+1)] = len(self.tag_to_ix)
-			self.ix_to_tag.append("e"+str(i+1))
+			self.tag_to_ix["E"+str(i+1)] = len(self.tag_to_ix)
+			self.ix_to_tag.append("E"+str(i+1))
 		self.s_tag_start = len(self.tag_to_ix)
 		for i in range(self.MAX_SV):
-			self.tag_to_ix["s"+str(i+1)] = len(self.tag_to_ix)
-			self.ix_to_tag.append("s"+str(i+1))
-			
+			self.tag_to_ix["S"+str(i+1)] = len(self.tag_to_ix)
+			self.ix_to_tag.append("S"+str(i+1))
+
 		self.tag_size = len(self.tag_to_ix)
 
 		for lemma in lemmas:
