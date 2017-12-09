@@ -150,9 +150,6 @@ def train(sentence_variable, target_variable, gold_variable, encoder, decoder, e
     gold_variable = torch.cat((gold_variable, Variable(torch.LongTensor([decoder.tags_info.tag_to_ix[EOS]]))))
     gold_variable = gold_variable.cuda() if use_cuda else gold_variable
 
-    print decoder_output
-    print gold_variable
-
     loss += criterion(decoder_output, gold_variable)
    
     loss.backward()
@@ -216,6 +213,7 @@ def trainIters(trn_instances, dev_instances, encoder, decoder, print_every=100, 
             else:
                 gold_list.append(x[1])
         gold_variable = Variable(torch.LongTensor(gold_list))
+
         if use_cuda:
             sentence_variable.append(Variable(trn_instances[idx][0]).cuda())
             sentence_variable.append(Variable(trn_instances[idx][1]).cuda())
@@ -234,8 +232,8 @@ def trainIters(trn_instances, dev_instances, encoder, decoder, print_every=100, 
             print_loss_total = 0
             print('epoch %.6f : %.10f' % (iter*1.0 / len(trn_instances), print_loss_avg))
 
-        if iter % evaluate_every == 0:
-            evaluate(dev_instances[0], encoder, decoder)
+        #if iter % evaluate_every == 0:
+            #evaluate(dev_instances[0], encoder, decoder)
 
 def evaluate(instances, encoder, decoder):
     for instance in instances:
