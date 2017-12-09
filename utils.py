@@ -36,6 +36,26 @@ def data2instance(trn_data, ixes):
 		for i in range(len(ixes)):
 			instances[-1].append(torch.LongTensor([get_from_ix(w, ixes[i][0], ixes[i][1]) for w in one[i]]))
 	return instances
+def data2instance_constrains(trn_data, ixex):
+	instances = []
+	for one in trn_data:
+		intances.append([])
+		## words
+		instances[-1].append(torch.LongTensor([get_from_ix(w, ixes[0][0], ixes[0][1]) for w in one[0]]))
+		instances[-1].append(torch.LongTensor([get_from_ix(w, ixes[1][0], ixes[1][1]) for w in one[1]]))
+		instances[-1].append(torch.LongTensor([get_from_ix(w, ixes[2][0], ixes[2][1]) for w in one[2]]))
+
+		instances[-1].append(one[3])
+		"""
+		for item in one[3]:
+			type = ixes[3].type(item)
+			if type == 3:
+				idx = one[2].index(item[:-1])
+				assert idx != -1, "unrecogized local relation"
+			instances[-1][-1].append([type, idx])
+		"""
+	return instances
+
 
 def data2instance_orig(trn_data, ixes):
 	instances = []

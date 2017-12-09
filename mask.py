@@ -20,28 +20,21 @@ class Mask:
 		self.open_bracket = self._get_one_hot()
 
 	def _get_one_hot(self, hots):
-		re = [0 for i in range(self.tag_size)]
+		re = [0 for i in range(self.tags.local_start)]
 		for hot in hots:
 			re[self.tag_to_ix[hot]] = 1
 		return re
-	def _isKVar(self, idx):
-		return (self.tags.ix_to_tag[idx] in self.tags.K_tag)
-	def _isPVar(self, idx):
-		return (self.tags.ix_to_tag[idx] in self.tags.P_tag)
-	def _isXVar(self, idx):
-		return (self.tags.ix_to_tag[idx] in self.tags.X_tag)
-	def _isEVar(self, idx):
-		return (self.tags.ix_to_tag[idx] in self.tags.E_tag)
-	def _isSVar(self, idx):
-		return (self.tags.ix_to_tag[idx] in self.tags.S_tag)
-	def _isVar(self, idx):
-		return (self._isPVar(idx) or self._isKVar(idx) or self._isXVar(idx) or self.is_EVar(idx) or self.is_SVar(idx))
-	
-	def _isReduce(self, idx):
-		return (self.tags.ix_to_tag[idx] == self.tags.reduces)
 
-	def _isRelation(self, idx):
-		return (self.tags.ix_to_tag[idx][-1] == '(')
+	def _isVar(self, tok):
+		return (len(tok) >= 2 and (tok[0] in ['k', 'p', 'x', 'e', 's']) and tok[-1] != '(')
+	def _get_Var_type(self, tok):
+		return ['k', 'p', 's', 'x', 'e'].index(tok[0])
+
+	def _isReduce(self, tok):
+		return tok == self.tags.reduce
+
+	def _isRelation(self, tok):
+		return (tok[-1] == '(')
 		
 	def get_mask(self, trn_sentences):
     	trn_masks = []
@@ -50,23 +43,37 @@ class Mask:
 
         	relation_cnt = 0
         	open_bracket = 0
-        	stack_tags = [[self.tags.SOS,0]]
+        	v_cnt = [1 for i in range(5)] # k p x e s
+        	stack_tags = [[self.tags.SOS, 0]]
 
-        	instance_masks.append(self._get_mask(relation_cnt, open_bracket, stack_tags))
-        	target_side = instance[-1].view(-1).data.tolist()
-        	for idx in target_side:
-        		if self._isVar(idx)
+        	instance_masks.append(self._get_mask(v_cnt, relation_cnt, open_bracket, stack_tags, len(instance[-1])))
+        	for tok in instance[-1]:
+        		if self._isVar(tok): # variables
         			stack_tags[-1][1] += 1
-        		elif self._isReduce(idx):
+        			v_type = self._get_Var_type(tok)
+        			v_cnt[v_type] = max(v_cnt[v_type], int(tok[1:]))
+
+        		elif self._isReduce(tok):
         			stack_tags = stack_tags[:-1]
         			stack_tags[-1][1] += 1
         			open_bracket -= 1
-        		elif self._isRelation(idx):
-        			stack_tags.append([self.tags.ix_to_tag[idx], 0])
+
+        		elif self._isRelation(tok):
+        			stack_tags.append([tok, 0])
         			relation_cnt += 1
-            	instanec_masks.append(self._get_mask(relation_cnt, open_bracket, stack_tags))
+
+            	instanec_masks.append(self._get_mask(v_cnt, relation_cnt, open_bracket, stack_tags))
             trn_masks.append(instance_masks)
         return trn_masks
 
-	def _get_mask(self, relation_cnt, open_bracket, stack_tags)
+	def _get_mask(self, v_cnt, relation_cnt, open_bracket, stack_tags, length):
+		if stack_tags[-1][0] == self.tags.SOS:
+			return [ [] , self._get_one_hot([self.tags.tag_drs])]
+		elif stack_tags[-1][0] == self.tags.rel_sdrs:
+			if stack_tags[-1][1] > 0:
+				tmp = []
+				tmp.append(self.tags.reduce)
+				return [ [], self._get_one_hot([])]
+
+
 			

@@ -53,10 +53,9 @@ class EncoderRNN(nn.Module):
 
 
 class AttnDecoderRNN(nn.Module):
-    def __init__(self, mask_info, tag_size, tag_dim, input_dim, feat_dim, encoder_hidden_dim, n_layers=1, dropout_p=0.1):
+    def __init__(self, mask_info, tag_dim, input_dim, feat_dim, encoder_hidden_dim, n_layers=1, dropout_p=0.1):
         super(AttnDecoderRNN, self).__init__()
         self.mask_info = mask_info
-        self.tag_size = tag_size
         self.tag_dim = tag_dim
         self.input_dim = input_dim
         self.feat_dim = feat_dim
@@ -66,7 +65,8 @@ class AttnDecoderRNN(nn.Module):
         self.dropout_p = dropout_p
 
         self.dropout = nn.Dropout(self.dropout_p)
-        self.tag_embeds = nn.Embedding(self.tag_size, self.tag_dim)
+        self.tag_embeds = nn.Embedding(self.mask_info.tags.tag_size, self.tag_dim)
+
         self.lstm = nn.LSTM(self.tag_dim, self.hidden_dim, num_layers= self.n_layers)
 
         self.feat = nn.Linear(self.hidden_dim + self.tag_dim, self.feat_dim)
@@ -309,15 +309,15 @@ attn_decoder = AttnDecoderRNN(len(tag_to_ix), TAG_DIM, DECODER_INPUT_DIM, ENCODE
 
 ###########################################################
 # prepare training instance
-trn_instances = data2instance(trn_data, [(word_to_ix,0), (pretrain_to_ix,0), (lemma_to_ix,0), (tags.tag_to_ix, 0)])
+trn_instances = data2instance_constrains(trn_data, [(word_to_ix,0), (pretrain_to_ix,0), (lemma_to_ix,0), (tags, 0)])
 print "trn size: " + str(len(trn_instances))
 ###########################################################
 # prepare development instance
-dev_instances = data2instance(dev_data, [(word_to_ix,0), (pretrain_to_ix,0), (lemma_to_ix,0), (tags.tag_to_ix, 0)])
+dev_instances = data2instance_constrains(dev_data, [(word_to_ix,0), (pretrain_to_ix,0), (lemma_to_ix,0), (tags, 0)])
 print "dev size: " + str(len(dev_instances))
 ###########################################################
 # prepare test instance
-tst_instances = data2instance(tst_data, [(word_to_ix,0), (pretrain_to_ix,0), (lemma_to_ix,0), (tags.tag_to_ix, 0)])
+tst_instances = data2instance_constrains(tst_data, [(word_to_ix,0), (pretrain_to_ix,0), (lemma_to_ix,0), (tags, 0)])
 print "tst size: " + str(len(tst_instances))
 
 print "GPU", use_cuda
