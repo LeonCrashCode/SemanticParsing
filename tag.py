@@ -2,14 +2,22 @@
 import re
 ###global_relation
 class Tag:
-	def __init__(self, filename):
+	def __init__(self, filename, lemmas):
 		self.filename = filename
 
-		self.MAX_V = 20
+
+		#14 8 39 14 13
+		self.MAX_KV = 15
+		self.MAX_PV = 10
+		self.MAX_XV = 40
+		self.MAX_EV = 15
+		self.MAX_SV = 15
 
 		self.SOS = "<SOS>"
 		self.EOS = "<EOS>"
 		self.UNK = "<UNK>"
+		self.CARD = "CARD"
+		self.TIME = "TIME"
 		self.reduce = ")"
 		
 		self.act_rel_k = "GEN_REL_K"
@@ -35,38 +43,16 @@ class Tag:
 		self.rel_card = "card("
 
 		self.relation_global = list()
-		self.relation_local = list()
 		for line in open(filename):
-			if "==== global":
-				flag = 0
-			elif "==== local":
-				flag = 1
-			else:
-				if flag == 0:
-					self.relation_global.append(line.strip())
-				elif flag == 1:
-					self.relation_local.append(line.strip())
-"""
-		self.tag_to_ix[self.act_rel_k] = len(self.tag_to_ix)
-		self.ix_to_tag.append(self.act_rel_k)
-		self.tag_to_ix[self.act_rel_p] = len(self.tag_to_ix)
-		self.ix_to_tag.append(self.act_rel_p)
-		self.tag_to_ix[self.act_tag_k] = len(self.tag_to_ix)
-		self.ix_to_tag.append(self.act_tag_k)
-		self.tag_to_ix[self.act_tag_p] = len(self.tag_to_ix)
-		self.ix_to_tag.append(self.act_tag_p)
-		self.tag_to_ix[self.act_tag_x] = len(self.tag_to_ix)
-		self.ix_to_tag.append(self.act_tag_x)
-		self.tag_to_ix[self.act_tag_e] = len(self.tag_to_ix)
-		self.ix_to_tag.append(self.act_tag_e)
-		self.tag_to_ix[self.act_tag_s] = len(self.tag_to_ix)
-		self.ix_to_tag.append(self.act_tag_s)
-"""
+			line = line.strip()
+			if line[0] == "#":
+				continue
+			self.relation_global.append(line.strip())
 		
-		self.tag_to_ix = {self.SOS:0, self.EOS:1, self.UNK:2}
-		self.ix_to_tag = [self.SOS, self.EOS, self.UNK]
+		self.tag_to_ix = {self.SOS:0, self.EOS:1, self.UNK:2, self.CARD:3, self.TIME:4}
+		self.ix_to_tag = [self.SOS, self.EOS, self.UNK, self.CARD, self.TIME]
 		
-		self.global_start = len(self.tag_to_ix)
+		
 		self.tag_to_ix[self.reduce] = len(self.tag_to_ix)
 		self.ix_to_tag.append(self.reduce)
 		self.tag_to_ix[self.rel_sdrs] = len(self.tag_to_ix)
@@ -91,46 +77,55 @@ class Tag:
 		self.tag_to_ix[self.rel_card] = len(self.tag_to_ix)
 		self.ix_to_tag.append(self.rel_card)
 
+		self.global_start = len(self.tag_to_ix)
 		for tag in self.relation_global:
 			self.tag_to_ix[tag] = len(self.tag_to_ix)
 			self.ix_to_tag.append(tag)
+		
+		self.tag_to_ix[self.act_rel_k] = len(self.tag_to_ix)
+		self.ix_to_tag.append(self.act_rel_k)
 
 		self.k_rel_start = len(self.tag_to_ix)
-		for i in range(self.MAX_V):
-			self.tag_to_ix["k"+str(i)+"("] = len(self.tag_to_ix)
-			self.ix_to_tag.append("k"+str(i)+"(")
+		for i in range(self.MAX_KV):
+			self.tag_to_ix["k"+str(i+1)+"("] = len(self.tag_to_ix)
+			self.ix_to_tag.append("k"+str(i+1)+"(")
 		self.p_rel_start = len(self.tag_to_ix)
-		for i in range(self.MAX_V):
-			self.tag_to_ix["p"+str(i)+"("] = len(self.tag_to_ix)
-			self.ix_to_tag.append("p"+str(i)+"(")
+		for i in range(self.MAX_PV):
+			self.tag_to_ix["p"+str(i+1)+"("] = len(self.tag_to_ix)
+			self.ix_to_tag.append("p"+str(i+1)+"(")
 		self.k_tag_start = len(self.tag_to_ix)
-		for i in range(self.MAX_V):
-			self.tag_to_ix["k"+str(i)] = len(self.tag_to_ix)
-			self.ix_to_tag.append("k"+str(i))
+		for i in range(self.MAX_KV):
+			self.tag_to_ix["k"+str(i+1)] = len(self.tag_to_ix)
+			self.ix_to_tag.append("k"+str(i+1))
 		self.p_tag_start = len(self.tag_to_ix)
-		for i in range(self.MAX_V):
-			self.tag_to_ix["p"+str(i)] = len(self.tag_to_ix)
-			self.ix_to_tag.append("p"+str(i))
+		for i in range(self.MAX_PV):
+			self.tag_to_ix["p"+str(i+1)] = len(self.tag_to_ix)
+			self.ix_to_tag.append("p"+str(i+1))
 		self.x_tag_start = len(self.tag_to_ix)
-		for i in range(self.MAX_V):
-			self.tag_to_ix["x"+str(i)] = len(self.tag_to_ix)
-			self.ix_to_tag.append("x"+str(i))
+		for i in range(self.MAX_XV):
+			self.tag_to_ix["x"+str(i+1)] = len(self.tag_to_ix)
+			self.ix_to_tag.append("x"+str(i+1))
 		self.e_tag_start = len(self.tag_to_ix)
-		for i in range(self.MAX_V):
-			self.tag_to_ix["e"+str(i)] = len(self.tag_to_ix)
-			self.ix_to_tag.append("e"+str(i))
+		for i in range(self.MAX_EV):
+			self.tag_to_ix["e"+str(i+1)] = len(self.tag_to_ix)
+			self.ix_to_tag.append("e"+str(i+1))
 		self.s_tag_start = len(self.tag_to_ix)
-		for i in range(self.MAX_V):
-			self.tag_to_ix["s"+str(i)] = len(self.tag_to_ix)
-			self.ix_to_tag.append("s"+str(i))
-
-		self.local_start = len(self.tag_to_ix)
-		for tag in self.relation_local:
-			self.tag_to_ix[tag] = len(self.tag_to_ix)
-			self.ix_to_tag.append(tag)
+		for i in range(self.MAX_SV):
+			self.tag_to_ix["s"+str(i+1)] = len(self.tag_to_ix)
+			self.ix_to_tag.append("s"+str(i+1))
 
 		self.tag_size = len(self.tag_to_ix)
+
+		for lemma in lemmas:
+			self.tag_to_ix[lemma+"("] = len(self.tag_to_ix)
+		self.all_tag_size = len(self.tag_to_ix)
+
 	def type(self, string):
+		if string in self.ix_to_tag:
+			return -2, self.tag_to_ix[string]
+		else:
+			return -1, self.tag_to_ix[string] if string in self.tag_to_ix else self.tag_to_ix[self.UNK] 
+
 		if string == self.SOS:
 			return 0, self.tag_to_ix[self.SOS]
 		elif string == self.EOS:
@@ -180,7 +175,7 @@ class Tag:
 			return 0, self.tag_to_ix[string]
 		else:
 			return 3, -1
-
+		
 	def print_info(self):
 		print "special_tag", len(self.special_tag), " ".join(self.special_tag)
 		print "special_relation", len(self.special_relation), " ".join(self.special_relation)

@@ -5,19 +5,37 @@ class Mask:
 		self.tag_size = len(tags.tag_to_ix)
 		self.tags = tags
 
-		self.sdrs = self._get_one_hot([tags.tag_sdrs])
-		self.drs = self._get_one_hot([tags.tag_drs])
-		self.special_tag = self._get_one_hot(tags.special_tag[2:])
-		self.special_relation = self._get_one_hot(tags.special_relation)
-		self.k_tag = self._get_one_hot(tags.K_tag)
-		self.p_tag = self._get_one_hot(tags.P_tag)
-		self.x_tag = self._get_one_hot(tags.X_tag)
-		self.e_tag = self._get_one_hot(tags.E_tag)
-		self.s_tag = self._get_one_hot(tags.S_tag)
-		self.other_relations = self._get_one_hot(tags.relation_one_slot+tags.relation_two_slot+tags.relation_flexible_slot)
-		self.reduce = self._get_one_hot([tags.reduce])
+		self.reduce_ix = self.tags.tag_to_ix[self.reduce]
+		self.sdrs_ix = self.tags.tag_to_ix[self.rel_sdrs]
+		self.drs_ix = self.tags.tag_to_ix[self.rel_drs]
+		self.not_ix = self.tags.tag_to_ix[self.rel_not]
+		self.nec_ix = self.tags.tag_to_ix[self.rel_nec]
+		self.pos_ix = self.tags.tag_to_ix[self.rel_pos]
+		self.or_ix = self.tags.tag_to_ix[self.rel_or]
+		self.duplex_ix = self.tags.tag_to_ix[self.rel_duplex]
+		self.imp_ix = self.tags.tag_to_ix[self.rel_imp]
+		self.gen_k_ix = self.tags.tag_to_ix[self.act_rel_k]
 
-		self.open_bracket = self._get_one_hot()
+		self.SOS_mask = self._get_SOS_mask()
+		self.sdrs_le1k_mask = self._get_sdrs_le1k_mask()
+		self.sdrs_ge2k_mask = self._get_sdrs_ge2k_mask()
+		self.sdrs_ge2k_nore_mask = self._get_sdrs_ge2k_nore_mask()
+		self.sdrs_ge2k_re_mask = self._get_sdrs_ge2k_re_mask()
+
+	def _get_SOS_mask(self):
+		re = [0 for i in range(self.tag_size)]
+		re[self.drs_ix] = 1
+		return [ 0 , re]
+
+	def _get_sdrs_le1k_mask(self):
+		re = [0 for i in range(self.tag_size)]
+		re[self.gen_k_ix] = 1
+		return [ 0, re]
+
+	def _get_sdrs_ge2k_nore_mask(self, ks):
+		re = [0 for i in range(self.tag_size)]
+		re[self.gen_k_ix] = 1
+		return [ 0, re]
 
 	def _get_one_hot(self, hots):
 		re = [0 for i in range(self.tags.local_start)]
@@ -43,7 +61,7 @@ class Mask:
 
         	relation_cnt = 0
         	open_bracket = 0
-        	v_cnt = [1 for i in range(5)] # k p x e s
+        	v_cnt = [0 for i in range(5)] # k p x e s
         	stack_tags = [[self.tags.SOS, 0]]
 
         	instance_masks.append(self._get_mask(v_cnt, relation_cnt, open_bracket, stack_tags, len(instance[-1])))
@@ -67,13 +85,20 @@ class Mask:
         return trn_masks
 
 	def _get_mask(self, v_cnt, relation_cnt, open_bracket, stack_tags, length):
+		re = [0 for i in range(self.tag_size)]
+
 		if stack_tags[-1][0] == self.tags.SOS:
-			return [ [] , self._get_one_hot([self.tags.tag_drs])]
+			re[self.drs_ix] = 1
+			return [ 0 , re]
 		elif stack_tags[-1][0] == self.tags.rel_sdrs:
 			if stack_tags[-1][1] > 0:
-				tmp = []
-				tmp.append(self.tags.reduce)
-				return [ [], self._get_one_hot([])]
+				re[self.reduce_ix] = 1
+			re[self.tags.k_tag_start+v_cnt[0]] = 1
+			for i in range(len(self.tags.relation_global)):
+				re[self.tags.global_start+i] = 1
+		elif stack_tag[]
+
+				
 
 
 			
