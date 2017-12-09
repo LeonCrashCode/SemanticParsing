@@ -78,7 +78,7 @@ class AttnDecoderRNN(nn.Module):
         if use_cuda:
             self.selective_matrix = self.selective_matrix.cuda()
 
-    def forward(self, input, hidden, encoder_output, train=True):
+    def forward(self, sentence_variable, input, hidden, encoder_output, train=True):
 
         if train:
             self.lstm.dropout = self.dropout_p
@@ -101,18 +101,33 @@ class AttnDecoderRNN(nn.Module):
             self.lstm.dropout = 0.0
             tokens = []
             while True:
-                embedded = self.tag_embeds(input).view(1,1,-1)
+                embedded = self.tag_embeds(input).view(1, 1, -1)
                 output, hidden = self.lstm(embedded, hidden)
-                attn_weights = F.softmax(torch.bmm(output.transpose(0,1), encoder_output.transpose(0,1).transpose(1,2)).view(output.size(0),-1))
-                attn_hiddens = torch.bmm(attn_weights.unsqueeze(0),encoder_output.transpose(0,1))
-                feat_hiddens = self.feat_tanh(self.feat(torch.cat((attn_hiddens, embedded.transpose(0,1)), 2).view(embedded.size(0),-1)))
-                output = self.out(feat_hiddens).view(1,-1)
+
+                selective_score = torch.bmm(torch.bmm(output, self.selective_matrix), encoder_output.transpose(0,1).transpose(1,2)).view(output.size(0), -1)
+
+                attn_weights = F.softmax(torch.bmm(output, encoder_output.transpose(0,1).transpose(1,2)).view(output.size(0), -1))
+                attn_hiddens = torch.bmm(attn_weights.unsqueeze(0), encoder_output.transpose(0, 1))
+                feat_hiddens = self.feat_tanh(self.feat(torch.cat((attn_hiddens, embedded), 2).view(embedded.size(0),-1)))
+
+                global_score = self.out(feat_hiddens)
+
+                output = torch.cat((global_score, selective_score), 1).view(1,-1)
+
                 _, input = torch.max(output,1)
                 idx = input.view(-1).data.tolist()[0]
-                tokens.append(idx)
-                if idx == tag_to_ix[EOS] or len(tokens) == 500:
+                if idx >= tags_info.tag_size:
+                    idx = sentence_variable[2][idx-tags_info.tag_size].view(-1).data.tolist()[0]
+                    tokens.append([-1, idx])
+                    idx += tags_info.tag_size
+                    input = Variable(torch.LongTensor([idx]))
+                    if use_cuda:
+                        input = input.cuda()
+                else:
+                    tokens.append([-2, idx])
+                if idx == tags_info.tag_to_ix[tags_info.EOS] or len(tokens) == 500:
                     break
-                return Variable(torch.LongTensor(tokens))
+            return Variable(torch.LongTensor(tokens))
 		
     def initHidden(self):
         if use_cuda:
@@ -144,7 +159,7 @@ def train(sentence_variable, target_variable, gold_variable, encoder, decoder, e
     #decoder_hidden = decoder.initHidden()
     decoder_hidden = (torch.cat((encoder_hidden[0][-2], encoder_hidden[0][-1]), 1).unsqueeze(0),torch.cat((encoder_hidden[1][-2], encoder_hidden[1][-1]), 1).unsqueeze(0))
 
-    decoder_output = decoder(decoder_input, decoder_hidden, encoder_output, train=True) 
+    decoder_output = decoder(sentence_variable, decoder_input, decoder_hidden, encoder_output, train=True) 
     
 
     gold_variable = torch.cat((gold_variable, Variable(torch.LongTensor([decoder.tags_info.tag_to_ix[EOS]]))))
@@ -164,14 +179,14 @@ def decode(sentence_variable, target_variable, encoder, decoder):
     
     encoder_output, encoder_hidden = encoder(sentence_variable, encoder_hidden)
     
-    decoder_input = Variable(torch.LongTensor([tag_to_ix[SOS]]))
+    decoder_input = Variable(torch.LongTensor([decoder.tags_info.tag_to_ix[SOS]]))
     decoder_input = decoder_input.cuda() if use_cuda else decoder_input
 
     decoder_hidden = (torch.cat((encoder_hidden[0][-2], encoder_hidden[0][-1]), 1).unsqueeze(0),torch.cat((encoder_hidden[1][-2], encoder_hidden[1][-1]), 1).unsqueeze(0))
 
-    tokens = decoder(decoder_input, decoder_hidden, encoder_output, train=False)
+    tokens = decoder(sentence_variable, decoder_input, decoder_hidden, encoder_output, train=False)
 
-    return tokens.view(-1).data.tolist()
+    return tokens.view(-1,2).data.tolist()
 
 ######################################################################
 # The whole training process looks like this:
@@ -232,13 +247,13 @@ def trainIters(trn_instances, dev_instances, encoder, decoder, print_every=100, 
             print_loss_total = 0
             print('epoch %.6f : %.10f' % (iter*1.0 / len(trn_instances), print_loss_avg))
 
-        #if iter % evaluate_every == 0:
-            #evaluate(dev_instances[0], encoder, decoder)
+        if iter % evaluate_every == 0:
+            evaluate(trn_instances[0:1], encoder, decoder)
 
 def evaluate(instances, encoder, decoder):
     for instance in instances:
         sentence_variable = []
-        target_variable = Variable(instance[3])
+        target_variable = Variable(torch.LongTensor([ x[1] for x in instance[3]]))
 
         if use_cuda:
             sentence_variable.append(Variable(instance[0]).cuda())
@@ -251,8 +266,11 @@ def evaluate(instances, encoder, decoder):
             sentence_variable.append(Variable(instance[2]))
         tokens = decode(sentence_variable, target_variable, encoder, decoder)
 
-    for tok in tokens:
-        print ix_to_tag[tok],
+    for type, tok in tokens:
+        if type == -1:
+            print decoder.tags_info.ix_to_lemma[tok],
+        else:
+            print decoder.tags_info.ix_to_tag[tok],
     print
 #####################################################################################
 #####################################################################################
@@ -270,16 +288,16 @@ dev_file = "dev.input"
 tst_file = "test.input"
 pretrain_file = "sskip.100.vectors"
 tag_info_file = "tag.info"
-#trn_file = "train.input.part"
-#dev_file = "dev.input.part"
-#tst_file = "test.input.part"
-#pretrain_file = "sskip.100.vectors.part"
+trn_file = "train.input.part"
+dev_file = "dev.input.part"
+tst_file = "test.input.part"
+pretrain_file = "sskip.100.vectors.part"
 UNK = "<UNK>"
 PADDING = "<PADDING>"
 
 trn_data = readfile(trn_file)
-word_to_ix = {UNK:1, PADDING: 0}
-lemma_to_ix = {UNK:1, PADDING: 0}
+word_to_ix = {UNK:0}
+lemma_to_ix = {UNK:0}
 for sentence, _, lemmas, tags in trn_data:
     for word in sentence:
         if word not in word_to_ix:
@@ -343,5 +361,5 @@ if use_cuda:
     encoder = encoder.cuda()
     attn_decoder = attn_decoder.cuda()
 
-trainIters(trn_instances, dev_instances, encoder, attn_decoder, print_every=1000, evaluate_every=50000, learning_rate=0.001)
+trainIters(trn_instances, dev_instances, encoder, attn_decoder, print_every=100, evaluate_every=100, learning_rate=0.001)
 

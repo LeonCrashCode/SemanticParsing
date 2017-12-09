@@ -116,8 +116,10 @@ class Tag:
 
 		self.tag_size = len(self.tag_to_ix)
 
+		self.ix_to_lemma = list()
 		for lemma in lemmas:
 			self.tag_to_ix[lemma+"("] = len(self.tag_to_ix)
+			self.ix_to_lemma.append(lemma+"(")
 		self.all_tag_size = len(self.tag_to_ix)
 
 	def type(self, string):
