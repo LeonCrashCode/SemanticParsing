@@ -113,7 +113,7 @@ class Tag:
 		for i in range(self.MAX_SV):
 			self.tag_to_ix["s"+str(i+1)] = len(self.tag_to_ix)
 			self.ix_to_tag.append("s"+str(i+1))
-
+			
 		self.tag_size = len(self.tag_to_ix)
 
 		for lemma in lemmas:
