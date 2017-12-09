@@ -343,5 +343,5 @@ if use_cuda:
     encoder = encoder.cuda()
     attn_decoder = attn_decoder.cuda()
 
-trainIters(trn_instances, dev_instances, encoder, attn_decoder, print_every=100, evaluate_every=50000, learning_rate=0.001)
+trainIters(trn_instances, dev_instances, encoder, attn_decoder, print_every=1000, evaluate_every=50000, learning_rate=0.001)
 
