@@ -51,7 +51,8 @@ def data2instance_constrains(trn_data, ixes):
 			type, idx = ixes[3].type(item)
 			if type == -1:
 				type = one[2].index(item[:-1])
-				assert type != -1, "unrecogized local relation"
+				idx = instances[-1][2].tolist()[type] + ixes[3].tag_size
+				assert type != -1 and idx != -1, "unrecogized local relation"
 			instances[-1][-1].append([type, idx])
 		
 	return instances

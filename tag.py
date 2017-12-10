@@ -5,7 +5,6 @@ class Tag:
 	def __init__(self, filename, lemmas):
 		self.filename = filename
 
-
 		#14 8 39 14 13
 		self.MAX_KV = 15
 		self.MAX_PV = 10
@@ -15,7 +14,6 @@ class Tag:
 
 		self.SOS = "<SOS>"
 		self.EOS = "<EOS>"
-		self.UNK = "<UNK>"
 		self.CARD = "CARD_NUMBER"
 		self.TIME = "TIME_NUMBER"
 		self.reduce = ")"
@@ -49,8 +47,8 @@ class Tag:
 				continue
 			self.relation_global.append(line.strip().upper())
 		
-		self.tag_to_ix = {self.SOS:0, self.EOS:1, self.UNK:2, self.CARD:3, self.TIME:4}
-		self.ix_to_tag = [self.SOS, self.EOS, self.UNK, self.CARD, self.TIME]
+		self.tag_to_ix = {self.SOS:0, self.EOS:1, self.CARD:2, self.TIME:3}
+		self.ix_to_tag = [self.SOS, self.EOS, self.CARD, self.TIME]
 		
 		
 		self.tag_to_ix[self.reduce] = len(self.tag_to_ix)
@@ -116,8 +114,10 @@ class Tag:
 
 		self.tag_size = len(self.tag_to_ix)
 
+		self.UNK = "<UNK>("
 		self.ix_to_lemma = list()
 		for lemma in lemmas:
+			assert lemma not in self.tag_to_ix
 			self.tag_to_ix[lemma+"("] = len(self.tag_to_ix)
 			self.ix_to_lemma.append(lemma+"(")
 		self.all_tag_size = len(self.tag_to_ix)
@@ -126,7 +126,7 @@ class Tag:
 		if string in self.ix_to_tag:
 			return -2, self.tag_to_ix[string]
 		else:
-			return -1, self.tag_to_ix[string] if string in self.tag_to_ix else self.tag_to_ix[self.UNK] 
+			return -1, -1
 
 		if string == self.SOS:
 			return 0, self.tag_to_ix[self.SOS]

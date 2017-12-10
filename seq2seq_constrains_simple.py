@@ -248,13 +248,12 @@ def trainIters(trn_instances, dev_instances, encoder, decoder, print_every=100, 
             print('epoch %.6f : %.10f' % (iter*1.0 / len(trn_instances), print_loss_avg))
 
         if iter % evaluate_every == 0:
-            evaluate(trn_instances[0:1], encoder, decoder)
-
+	    evaluate(trn_instances[0:10], encoder, decoder)
+            evaluate(dev_instances[0:10], encoder, decoder)
 def evaluate(instances, encoder, decoder):
     for instance in instances:
         sentence_variable = []
         target_variable = Variable(torch.LongTensor([ x[1] for x in instance[3]]))
-
         if use_cuda:
             sentence_variable.append(Variable(instance[0]).cuda())
             sentence_variable.append(Variable(instance[1]).cuda())
@@ -288,16 +287,16 @@ dev_file = "dev.input"
 tst_file = "test.input"
 pretrain_file = "sskip.100.vectors"
 tag_info_file = "tag.info"
-trn_file = "train.input.part"
-dev_file = "dev.input.part"
-tst_file = "test.input.part"
-pretrain_file = "sskip.100.vectors.part"
+#trn_file = "train.input.part"
+#dev_file = "dev.input.part"
+#tst_file = "test.input.part"
+#pretrain_file = "sskip.100.vectors.part"
 UNK = "<UNK>"
-PADDING = "<PADDING>"
 
 trn_data = readfile(trn_file)
 word_to_ix = {UNK:0}
 lemma_to_ix = {UNK:0}
+ix_to_lemma = [UNK]
 for sentence, _, lemmas, tags in trn_data:
     for word in sentence:
         if word not in word_to_ix:
@@ -305,9 +304,10 @@ for sentence, _, lemmas, tags in trn_data:
     for lemma in lemmas:
         if lemma not in lemma_to_ix:
             lemma_to_ix[lemma] = len(lemma_to_ix)
+	    ix_to_lemma.append(lemma)
 #############################################
 ## tags
-tags_info = Tag(tag_info_file, lemma_to_ix.keys())
+tags_info = Tag(tag_info_file, ix_to_lemma)
 SOS = tags_info.SOS
 EOS = tags_info.EOS
 
@@ -315,8 +315,8 @@ EOS = tags_info.EOS
 ##
 #mask_info = Mask(tags)
 #############################################
-pretrain_to_ix = {UNK:1, PADDING: 0}
-pretrain_embeddings = [ [0. for i in range(100)], [0. for i in range(100)]] # for UNK and PADDING
+pretrain_to_ix = {UNK:0}
+pretrain_embeddings = [ [0. for i in range(100)] ] # for UNK 
 pretrain_data = readpretrain(pretrain_file)
 for one in pretrain_data:
     pretrain_to_ix[one[0]] = len(pretrain_to_ix)
@@ -361,5 +361,5 @@ if use_cuda:
     encoder = encoder.cuda()
     attn_decoder = attn_decoder.cuda()
 
-trainIters(trn_instances, dev_instances, encoder, attn_decoder, print_every=100, evaluate_every=100, learning_rate=0.001)
+trainIters(trn_instances, dev_instances, encoder, attn_decoder, print_every=1000, evaluate_every=50000, learning_rate=0.001)
 
