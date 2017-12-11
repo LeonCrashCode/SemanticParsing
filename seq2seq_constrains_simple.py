@@ -85,6 +85,8 @@ class AttnDecoderRNN(nn.Module):
             embedded = self.tag_embeds(input).unsqueeze(1)
             embedded = self.dropout(embedded)
 
+	#    print embedded
+	#    print hidden
             output, hidden = self.lstm(embedded, hidden)
             
             selective_score = torch.bmm(torch.bmm(output.transpose(0,1), self.selective_matrix), encoder_output.transpose(0,1).transpose(1,2)).view(output.size(0), -1)
@@ -217,7 +219,6 @@ def trainIters(trn_instances, dev_instances, encoder, decoder, print_every=100, 
         iter += 1
         if idx == len(trn_instances):
             idx = 0
-
         sentence_variable = []
         target_variable = Variable(torch.LongTensor([ x[1] for x in trn_instances[idx][3]]))
 
@@ -241,7 +242,7 @@ def trainIters(trn_instances, dev_instances, encoder, decoder, print_every=100, 
 
         loss = train(sentence_variable, target_variable, gold_variable, encoder, decoder, encoder_optimizer, decoder_optimizer, criterion)
         print_loss_total += loss
-
+	print "sent", idx, iter, print_every
         if iter % print_every == 0:
             print_loss_avg = print_loss_total / print_every
             print_loss_total = 0
@@ -264,13 +265,12 @@ def evaluate(instances, encoder, decoder):
             sentence_variable.append(Variable(instance[1]))
             sentence_variable.append(Variable(instance[2]))
         tokens = decode(sentence_variable, target_variable, encoder, decoder)
-
-    for type, tok in tokens:
-        if type == -1:
-            print decoder.tags_info.ix_to_lemma[tok],
-        else:
-            print decoder.tags_info.ix_to_tag[tok],
-    print
+	for type, tok in tokens:
+	    if type == -1:
+            	print decoder.tags_info.ix_to_lemma[tok],
+            else:
+            	print decoder.tags_info.ix_to_tag[tok],
+    	print
 #####################################################################################
 #####################################################################################
 #####################################################################################
