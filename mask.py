@@ -13,7 +13,7 @@ class SimpleMask:
 		if len(conditions) !=0:
 			relation_count = conditions["relation_count"]
 			stack = conditions["stack"]
-
+		inputs = [[-2, 0]] + inputs
 		res = []
 		for type, ix in inputs:
 			if len(res) != 0:
@@ -28,14 +28,14 @@ class SimpleMask:
 				if ix >= 5 and ix <=12:
 					stack.append(0)
 					relation_count += 1
-				elif ix > 12 and ix < self.k_rel_start:
+				elif ix > 12 and ix < tags_info.k_rel_start:
 					stack.append(1)
 					relation_count += 1
-				elif ix >= self.k_rel_start and ix < self.k_tag_start:
+				elif ix >= tags_info.k_rel_start and ix < tags_info.k_tag_start:
 					stack.append(0)
 					relation_count += 1
 				elif ix == 4:
-					while stack[-1] == -1:
+					while stack[-1] < 0:
 						stack.pop()
 					stack[-1] = -2
 				else:
@@ -44,11 +44,9 @@ class SimpleMask:
 				stack.append(1)
 				relation_count += 1
 
-			####
 			if stack[-1] == 999:
 				re = self._get_zeros(tags_info.tag_size) + self._get_zeros(encoder_input_size)
-				re[tags_info.tag_to_ix[self.rel_drs]] = 1
-				relation_count += 1
+				re[tags_info.tag_to_ix[tags_info.rel_drs]] = 1
 				res.append(re)
 			elif stack[-1] == 0:
 				if relation_count > 200:
@@ -97,7 +95,11 @@ class SimpleMask:
 						idx += 1
 					res.append(re)
 			elif stack[-1] == -2:
-				if relation_count > 200:
+				if stack[-2] == 999:
+					re = self._get_zeros(tags_info.tag_size) + self._get_zeros(encoder_input_size)
+					re[tags_info.tag_to_ix[tags_info.EOS]] = 1
+					res.append(re)
+				elif relation_count > 200:
 					re = self._get_zeros(tags_info.tag_size) + self._get_zeros(encoder_input_size)
 					re[tags_info.tag_to_ix[tags_info.reduce]] = 1
 					res.append(re)
@@ -114,7 +116,6 @@ class SimpleMask:
 					res.append(re)
 			else:
 				assert False
-
 			
 
 	def _get_zeros(self, size):

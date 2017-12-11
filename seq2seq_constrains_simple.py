@@ -14,6 +14,7 @@ os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 from mask import SimpleMask
 
 use_cuda = torch.cuda.is_available()
+use_cuda = False
 class EncoderRNN(nn.Module):
     def __init__(self, word_size, word_dim, pretrain_size, pretrain_dim, pretrain_embeddings, lemma_size, lemma_dim, input_dim, hidden_dim, n_layers=1, dropout_p=0.0):
         super(EncoderRNN, self).__init__()
@@ -224,8 +225,9 @@ def trainIters(trn_instances, dev_instances, encoder, decoder, print_every=100, 
             idx = 0
         sentence_variable = []
         target_variable = Variable(torch.LongTensor([ x[1] for x in trn_instances[idx][3]]))
-        mask = SimpleMask(trn_instances[idx][3], decoder.tags_info)
+        mask = SimpleMask(decoder.tags_info, len(trn_instances[idx][0]), trn_instances[idx][3])
         
+	exit(1) 
         gold_list = []
         for x in trn_instances[idx][3]:
             if x[0] != -2:
@@ -291,10 +293,10 @@ dev_file = "dev.input"
 tst_file = "test.input"
 pretrain_file = "sskip.100.vectors"
 tag_info_file = "tag.info"
-#trn_file = "train.input.part"
-#dev_file = "dev.input.part"
-#tst_file = "test.input.part"
-#pretrain_file = "sskip.100.vectors.part"
+trn_file = "train.input.part"
+dev_file = "dev.input.part"
+tst_file = "test.input.part"
+pretrain_file = "sskip.100.vectors.part"
 UNK = "<UNK>"
 
 trn_data = readfile(trn_file)
