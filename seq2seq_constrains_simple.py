@@ -8,6 +8,9 @@ from torch.autograd import Variable
 import torch.optim as optim
 import torch.nn.functional as F
 
+import os
+os.environ["CUDA_VISIBLE_DEVICES"] = "0"
+
 use_cuda = torch.cuda.is_available()
 class EncoderRNN(nn.Module):
     def __init__(self, word_size, word_dim, pretrain_size, pretrain_dim, pretrain_embeddings, lemma_size, lemma_dim, input_dim, hidden_dim, n_layers=1, dropout_p=0.0):
