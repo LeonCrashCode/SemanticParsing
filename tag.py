@@ -52,36 +52,36 @@ class Tag:
 		
 		
 		self.tag_to_ix[self.reduce] = len(self.tag_to_ix)
-		self.ix_to_tag.append(self.reduce)
+		self.ix_to_tag.append(self.reduce) #4
 		self.tag_to_ix[self.rel_sdrs] = len(self.tag_to_ix)
-		self.ix_to_tag.append(self.rel_sdrs)
+		self.ix_to_tag.append(self.rel_sdrs) #5
 		self.tag_to_ix[self.rel_drs] = len(self.tag_to_ix)
-		self.ix_to_tag.append(self.rel_drs)
+		self.ix_to_tag.append(self.rel_drs) #6
 		self.tag_to_ix[self.rel_not] = len(self.tag_to_ix)
-		self.ix_to_tag.append(self.rel_not)
+		self.ix_to_tag.append(self.rel_not) #7
 		self.tag_to_ix[self.rel_nec] = len(self.tag_to_ix)
-		self.ix_to_tag.append(self.rel_nec)
+		self.ix_to_tag.append(self.rel_nec) #8
 		self.tag_to_ix[self.rel_pos] = len(self.tag_to_ix)
-		self.ix_to_tag.append(self.rel_pos)
+		self.ix_to_tag.append(self.rel_pos) #9
 		self.tag_to_ix[self.rel_or] = len(self.tag_to_ix)
-		self.ix_to_tag.append(self.rel_or)
+		self.ix_to_tag.append(self.rel_or) #10
 		self.tag_to_ix[self.rel_duplex] = len(self.tag_to_ix)
-		self.ix_to_tag.append(self.rel_duplex)
+		self.ix_to_tag.append(self.rel_duplex) #11
 		self.tag_to_ix[self.rel_imp] = len(self.tag_to_ix)
-		self.ix_to_tag.append(self.rel_imp)
+		self.ix_to_tag.append(self.rel_imp) #12
 
 		self.tag_to_ix[self.rel_timex] = len(self.tag_to_ix)
-		self.ix_to_tag.append(self.rel_timex)
+		self.ix_to_tag.append(self.rel_timex) #13
 		self.tag_to_ix[self.rel_card] = len(self.tag_to_ix)
-		self.ix_to_tag.append(self.rel_card)
+		self.ix_to_tag.append(self.rel_card) #14
 
 		self.global_start = len(self.tag_to_ix)
 		for tag in self.relation_global:
 			self.tag_to_ix[tag] = len(self.tag_to_ix)
 			self.ix_to_tag.append(tag)
 		
-		self.tag_to_ix[self.act_rel_k] = len(self.tag_to_ix)
-		self.ix_to_tag.append(self.act_rel_k)
+		#self.tag_to_ix[self.act_rel_k] = len(self.tag_to_ix)
+		#self.ix_to_tag.append(self.act_rel_k)
 
 		self.k_rel_start = len(self.tag_to_ix)
 		for i in range(self.MAX_KV):

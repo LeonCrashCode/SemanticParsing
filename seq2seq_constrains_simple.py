@@ -11,6 +11,8 @@ import torch.nn.functional as F
 import os
 os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 
+from mask import SimpleMask
+
 use_cuda = torch.cuda.is_available()
 class EncoderRNN(nn.Module):
     def __init__(self, word_size, word_dim, pretrain_size, pretrain_dim, pretrain_embeddings, lemma_size, lemma_dim, input_dim, hidden_dim, n_layers=1, dropout_p=0.0):
@@ -88,8 +90,6 @@ class AttnDecoderRNN(nn.Module):
             embedded = self.tag_embeds(input).unsqueeze(1)
             embedded = self.dropout(embedded)
 
-	#    print embedded
-	#    print hidden
             output, hidden = self.lstm(embedded, hidden)
             
             selective_score = torch.bmm(torch.bmm(output.transpose(0,1), self.selective_matrix), encoder_output.transpose(0,1).transpose(1,2)).view(output.size(0), -1)
@@ -224,7 +224,8 @@ def trainIters(trn_instances, dev_instances, encoder, decoder, print_every=100, 
             idx = 0
         sentence_variable = []
         target_variable = Variable(torch.LongTensor([ x[1] for x in trn_instances[idx][3]]))
-
+        mask = SimpleMask(trn_instances[idx][3], decoder.tags_info)
+        
         gold_list = []
         for x in trn_instances[idx][3]:
             if x[0] != -2:
@@ -245,14 +246,14 @@ def trainIters(trn_instances, dev_instances, encoder, decoder, print_every=100, 
 
         loss = train(sentence_variable, target_variable, gold_variable, encoder, decoder, encoder_optimizer, decoder_optimizer, criterion)
         print_loss_total += loss
-	print "sent", idx, iter, print_every
+
         if iter % print_every == 0:
             print_loss_avg = print_loss_total / print_every
             print_loss_total = 0
             print('epoch %.6f : %.10f' % (iter*1.0 / len(trn_instances), print_loss_avg))
 
         if iter % evaluate_every == 0:
-	    evaluate(trn_instances[0:10], encoder, decoder)
+            evaluate(trn_instances[0:10], encoder, decoder)
             evaluate(dev_instances[0:10], encoder, decoder)
 def evaluate(instances, encoder, decoder):
     for instance in instances:
