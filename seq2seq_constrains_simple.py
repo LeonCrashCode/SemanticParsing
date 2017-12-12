@@ -114,7 +114,8 @@ class AttnDecoderRNN(nn.Module):
             while True:
                 mask = self.mask_pool.get_step_mask()
                 mask_variable = Variable(torch.FloatTensor(mask), requires_grad = False).unsqueeze(0)
-
+                if use_cuda:
+                    mask_variable = mask_variable.cuda()
                 embedded = self.tag_embeds(input).view(1, 1, -1)
                 output, hidden = self.lstm(embedded, hidden)
 
