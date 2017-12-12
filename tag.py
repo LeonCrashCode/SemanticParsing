@@ -39,6 +39,7 @@ class Tag:
 		self.rel_imp = "IMP("
 		self.rel_timex = "TIMEX("
 		self.rel_card = "CARD("
+		self.rel_eq = "EQ("
 
 		self.relation_global = list()
 		for line in open(filename):
@@ -74,15 +75,18 @@ class Tag:
 		self.ix_to_tag.append(self.rel_timex) #13
 		self.tag_to_ix[self.rel_card] = len(self.tag_to_ix)
 		self.ix_to_tag.append(self.rel_card) #14
+		self.tag_to_ix[self.rel_eq] = len(self.tag_to_ix)
+		self.ix_to_tag.append(self.rel_eq) #14
 
 		self.global_start = len(self.tag_to_ix)
 		for tag in self.relation_global:
+			if tag in self.tag_to_ix:
+				continue
 			self.tag_to_ix[tag] = len(self.tag_to_ix)
 			self.ix_to_tag.append(tag)
-		
+
 		#self.tag_to_ix[self.act_rel_k] = len(self.tag_to_ix)
 		#self.ix_to_tag.append(self.act_rel_k)
-
 		self.k_rel_start = len(self.tag_to_ix)
 		for i in range(self.MAX_KV):
 			self.tag_to_ix["K"+str(i+1)+"("] = len(self.tag_to_ix)
@@ -113,6 +117,7 @@ class Tag:
 			self.ix_to_tag.append("S"+str(i+1))
 
 		self.tag_size = len(self.tag_to_ix)
+		assert len(self.tag_to_ix) == len(self.ix_to_tag)
 
 		self.UNK = "<UNK>("
 		self.ix_to_lemma = list()
@@ -128,65 +133,7 @@ class Tag:
 		else:
 			return -1, -1
 
-		if string == self.SOS:
-			return 0, self.tag_to_ix[self.SOS]
-		elif string == self.EOS:
-			return 0, self.tag_to_ix[self.EOS]
-		elif string == self.reduce:
-			return 0, self.tag_to_ix[self.reduce]
-
-		elif re.match("k[0-9]+?(", string):
-			return 1, int(string[1:-1])
-		elif re.match("p[0-9]+?(", string):
-			return 1, int(string[1:-1])
-
-		elif re.match("k[0-9]+", string):
-			return 20, int(string[1:])
-		elif re.match("p[0-9]+", string):
-			return 21, int(string[1:])
-		elif re.match("x[0-9]+", string):
-			return 22, int(string[1:])
-		elif re.match("e[0-9]+", string):
-			return 23, int(string[1:])
-		elif re.match("s[0-9]+", string):
-			return 24, int(string[1:])
-
-		elif string == self.rel_sdrs:
-			return 0, self.tag_to_ix[self.rel_sdrs]
-		elif string == self.rel_drs:
-			return 0, self.tag_to_ix[self.rel_drs]
-		elif string == self.rel_not:
-			return 0, self.tag_to_ix[self.rel_not]
-		elif string == self.rel_nec:
-			return 0, self.tag_to_ix[self.rel_nec]
-		elif string == self.rel_pos:
-			return 0, self.tag_to_ix[self.rel_pos]
-		elif string == self.rel_or:
-			return 0, self.tag_to_ix[self.rel_or]
-		elif string == self.rel_duplex:
-			return 0, self.tag_to_ix[self.rel_duplex]
-		elif string == self.rel_imp:
-			return 0, self.tag_to_ix[self.rel_imp]
-
-		elif string == self.rel_timex:
-			return 0, self.tag_to_ix[self.rel_timex]
-		elif string == self.rel_card:
-			return 0, self.tag_to_ix[self.rel_card]
-
-		elif string in self.relation_global:
-			return 0, self.tag_to_ix[string]
-		else:
-			return 3, -1
 		
-	def print_info(self):
-		print "special_tag", len(self.special_tag), " ".join(self.special_tag)
-		print "special_relation", len(self.special_relation), " ".join(self.special_relation)
-		print "K_tag", len(self.K_tag), " ".join(self.K_tag)
-		print "P_tag", len(self.P_tag), " ".join(self.P_tag)
-		print "X_tag", len(self.X_tag), " ".join(self.X_tag)
-		print "E_tag", len(self.E_tag), " ".join(self.E_tag)
-		print "S_tag", len(self.S_tag), " ".join(self.S_tag)
-		print "relation", len(self.relation_one_slot)+len(self.relation_two_slot)+len(self.relation_flexible_slot)
 
 
 

@@ -59,8 +59,9 @@ class EncoderRNN(nn.Module):
 
 
 class AttnDecoderRNN(nn.Module):
-    def __init__(self, tags_info, tag_dim, input_dim, feat_dim, encoder_hidden_dim, n_layers=1, dropout_p=0.1):
+    def __init__(self, mask_pool, tags_info, tag_dim, input_dim, feat_dim, encoder_hidden_dim, n_layers=1, dropout_p=0.1):
         super(AttnDecoderRNN, self).__init__()
+        self.mask_pool = mask_pool
         self.tags_info = tags_info
         self.tag_size = tags_info.tag_size
         self.tag_dim = tag_dim
@@ -84,7 +85,7 @@ class AttnDecoderRNN(nn.Module):
         if use_cuda:
             self.selective_matrix = self.selective_matrix.cuda()
 
-    def forward(self, sentence_variable, input, hidden, encoder_output, train=True):
+    def forward(self, sentence_variable, input, hidden, encoder_output, train=True, mask_variable=None):
 
         if train:
             self.lstm.dropout = self.dropout_p
@@ -101,12 +102,19 @@ class AttnDecoderRNN(nn.Module):
 
             global_score = self.out(feat_hiddens)
 
-            output = F.log_softmax(torch.cat((global_score, selective_score), 1))
+            total_score = torch.cat((global_score, selective_score), 1)
+
+            output = F.log_softmax(total_score + (mask_variable - 1) * 1e10)
+
             return output
         else:
             self.lstm.dropout = 0.0
             tokens = []
+            self.mask_pool.reset(sentence_variable[0].size(0))
             while True:
+                mask = self.mask_pool.get_step_mask()
+                mask_variable = Variable(torch.FloatTensor(mask), requires_grad = False).unsqueeze(0)
+
                 embedded = self.tag_embeds(input).view(1, 1, -1)
                 output, hidden = self.lstm(embedded, hidden)
 
@@ -118,20 +126,27 @@ class AttnDecoderRNN(nn.Module):
 
                 global_score = self.out(feat_hiddens)
 
-                output = torch.cat((global_score, selective_score), 1).view(1,-1)
+                total_score = torch.cat((global_score, selective_score), 1)
+
+                output = total_score + (mask_variable - 1) * 1e10
 
                 _, input = torch.max(output,1)
                 idx = input.view(-1).data.tolist()[0]
+
                 if idx >= tags_info.tag_size:
-                    idx = sentence_variable[2][idx-tags_info.tag_size].view(-1).data.tolist()[0]
-                    tokens.append([-1, idx])
+                    type = idx - tags_info.tag_size
+                    idx = sentence_variable[2][type].view(-1).data.tolist()[0]
+                    tokens.append([type, idx])
                     idx += tags_info.tag_size
                     input = Variable(torch.LongTensor([idx]))
                     if use_cuda:
                         input = input.cuda()
+                    self.mask_pool.update(type, idx)
                 else:
                     tokens.append([-2, idx])
-                if idx == tags_info.tag_to_ix[tags_info.EOS] or len(tokens) == 500:
+                    self.mask_pool.update(-2, idx)
+
+                if idx == tags_info.tag_to_ix[tags_info.EOS]:
                     break
             return Variable(torch.LongTensor(tokens))
 		
@@ -145,7 +160,7 @@ class AttnDecoderRNN(nn.Module):
                 Variable(torch.zeros(1, 1, self.hidden_dim)))
             return result
 
-def train(sentence_variable, target_variable, gold_variable, encoder, decoder, encoder_optimizer, decoder_optimizer, criterion):
+def train(sentence_variable, target_variable, gold_variable, mask_variable, encoder, decoder, encoder_optimizer, decoder_optimizer, criterion):
     encoder_hidden = encoder.initHidden()
 
     encoder_optimizer.zero_grad()
@@ -165,7 +180,7 @@ def train(sentence_variable, target_variable, gold_variable, encoder, decoder, e
     #decoder_hidden = decoder.initHidden()
     decoder_hidden = (torch.cat((encoder_hidden[0][-2], encoder_hidden[0][-1]), 1).unsqueeze(0),torch.cat((encoder_hidden[1][-2], encoder_hidden[1][-1]), 1).unsqueeze(0))
 
-    decoder_output = decoder(sentence_variable, decoder_input, decoder_hidden, encoder_output, train=True) 
+    decoder_output = decoder(sentence_variable, decoder_input, decoder_hidden, encoder_output, train=True, mask_variable=mask_variable) 
     
 
     gold_variable = torch.cat((gold_variable, Variable(torch.LongTensor([decoder.tags_info.tag_to_ix[EOS]]))))
@@ -216,6 +231,12 @@ def trainIters(trn_instances, dev_instances, encoder, decoder, print_every=100, 
 
     criterion = nn.NLLLoss()
 
+    masks = []
+
+    for instance in trn_instances:
+        decoder.mask_pool.reset(len(instance[0]))
+        masks.append(decoder.mask_pool.get_all_mask(instance[3]))
+
     idx = -1
     iter = 0
     while True:
@@ -225,9 +246,8 @@ def trainIters(trn_instances, dev_instances, encoder, decoder, print_every=100, 
             idx = 0
         sentence_variable = []
         target_variable = Variable(torch.LongTensor([ x[1] for x in trn_instances[idx][3]]))
-        mask = SimpleMask(decoder.tags_info, len(trn_instances[idx][0]), trn_instances[idx][3])
-        
-	exit(1) 
+        mask_variable = Variable(torch.FloatTensor(masks[idx]), requires_grad = False)
+
         gold_list = []
         for x in trn_instances[idx][3]:
             if x[0] != -2:
@@ -241,12 +261,13 @@ def trainIters(trn_instances, dev_instances, encoder, decoder, print_every=100, 
             sentence_variable.append(Variable(trn_instances[idx][1]).cuda())
             sentence_variable.append(Variable(trn_instances[idx][2]).cuda())
             target_variable = target_variable.cuda()
+            mask_variable = mask_variable.cuda()
         else:
             sentence_variable.append(Variable(trn_instances[idx][0]))
             sentence_variable.append(Variable(trn_instances[idx][1]))
             sentence_variable.append(Variable(trn_instances[idx][2]))        
 
-        loss = train(sentence_variable, target_variable, gold_variable, encoder, decoder, encoder_optimizer, decoder_optimizer, criterion)
+        loss = train(sentence_variable, target_variable, gold_variable, mask_variable, encoder, decoder, encoder_optimizer, decoder_optimizer, criterion)
         print_loss_total += loss
 
         if iter % print_every == 0:
@@ -271,12 +292,13 @@ def evaluate(instances, encoder, decoder):
             sentence_variable.append(Variable(instance[1]))
             sentence_variable.append(Variable(instance[2]))
         tokens = decode(sentence_variable, target_variable, encoder, decoder)
-	for type, tok in tokens:
-	    if type == -1:
-            	print decoder.tags_info.ix_to_lemma[tok],
+
+        for type, tok in tokens:
+            if type >= 0:
+                print decoder.tags_info.ix_to_lemma[tok],
             else:
-            	print decoder.tags_info.ix_to_tag[tok],
-    	print
+                print decoder.tags_info.ix_to_tag[tok],
+        print
 #####################################################################################
 #####################################################################################
 #####################################################################################
@@ -293,10 +315,10 @@ dev_file = "dev.input"
 tst_file = "test.input"
 pretrain_file = "sskip.100.vectors"
 tag_info_file = "tag.info"
-trn_file = "train.input.part"
-dev_file = "dev.input.part"
-tst_file = "test.input.part"
-pretrain_file = "sskip.100.vectors.part"
+#trn_file = "train.input.part"
+#dev_file = "dev.input.part"
+#tst_file = "test.input.part"
+#pretrain_file = "sskip.100.vectors.part"
 UNK = "<UNK>"
 
 trn_data = readfile(trn_file)
@@ -316,7 +338,7 @@ for sentence, _, lemmas, tags in trn_data:
 tags_info = Tag(tag_info_file, ix_to_lemma)
 SOS = tags_info.SOS
 EOS = tags_info.EOS
-
+mask_pool = SimpleMask(tags_info)
 ##############################################
 ##
 #mask_info = Mask(tags)
@@ -346,7 +368,7 @@ DECODER_INPUT_DIM = 128
 ATTENTION_HIDDEN_DIM = 256
 
 encoder = EncoderRNN(len(word_to_ix), WORD_EMBEDDING_DIM, len(pretrain_to_ix), PRETRAIN_EMBEDDING_DIM, torch.FloatTensor(pretrain_embeddings), len(lemma_to_ix), LEMMA_EMBEDDING_DIM, INPUT_DIM, ENCODER_HIDDEN_DIM, n_layers=2, dropout_p=0.1)
-attn_decoder = AttnDecoderRNN(tags_info, TAG_DIM, DECODER_INPUT_DIM, ENCODER_HIDDEN_DIM, ATTENTION_HIDDEN_DIM, n_layers=1, dropout_p=0.1)
+attn_decoder = AttnDecoderRNN(mask_pool, tags_info, TAG_DIM, DECODER_INPUT_DIM, ENCODER_HIDDEN_DIM, ATTENTION_HIDDEN_DIM, n_layers=1, dropout_p=0.1)
 
 
 ###########################################################
