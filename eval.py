@@ -36,10 +36,15 @@ class Eval:
 		r_base = len(g)
 
 		acc = 0.0
-		for item in o:
-			if item in g:
-				acc += 1
-
+		if len(o) < len(g):
+			for item in o:
+				if item in g:
+					acc += 1
+		else:
+			for item in g:
+                                if item in o:
+                                        acc += 1
+		assert acc <= p_base and acc<= r_base
 		return acc, p_base, r_base
 
 	def _get_relation_set(self, drs):
@@ -62,11 +67,11 @@ class Eval:
 				pass
 			else:
 				if i+3 < len(drs) and drs[i+3] == ")":
-					#re.append(" ".join(drs[i:i+4]))
-					re.append(" ".join([drs[i], "X", "X",")"]))
+					re.append(" ".join(drs[i:i+4]))
+					#re.append(" ".join([drs[i], "X", "X",")"]))
 				elif i+2 < len(drs) and drs[i+2] == ")":
-					#re.append(" ".join(drs[i:i+3]))
-					re.append(" ".join([drs[i], "X",")"]))
+					re.append(" ".join(drs[i:i+3]))
+					#re.append(" ".join([drs[i], "X",")"]))
 
 
 		return re
