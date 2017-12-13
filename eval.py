@@ -62,9 +62,12 @@ class Eval:
 				pass
 			else:
 				if i+3 < len(drs) and drs[i+3] == ")":
-					re.append(" ".join(drs[i:i+4]))
+					#re.append(" ".join(drs[i:i+4]))
+					re.append(" ".join([drs[i], "X", "X",")"]))
 				elif i+2 < len(drs) and drs[i+2] == ")":
-					re.append(" ".join(drs[i:i+3]))
+					#re.append(" ".join(drs[i:i+3]))
+					re.append(" ".join([drs[i], "X",")"]))
+
 
 		return re
 L1 = []
