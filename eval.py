@@ -1,14 +1,7 @@
 import re
 class Eval:
 	def __init__(self, tags_info):
-		self.ignore = [tags_info.rel_sdrs, 
-			tags_info.rel_drs, 
-			tags_info.rel_not, 
-			tags_info.rel_nec, 
-			tags_info.rel_pos, 
-			tags_info.rel_or,
-			tags_info.rel_duplex,
-			tags_info.rel_imp]
+		self.ignore = ["SDRS(", "DRS(", "NOT(", "NEC(", "POS(", "OR(", "DUPLEX(", "IMP(", ")"]
 		
 		self.kp = re.compile("^K[0-9]+\(?$")
 		self.pp = re.compile("^K[0-9]+\(?$")
@@ -47,8 +40,6 @@ class Eval:
 		re = []
 		for item in drs:
 			if item in self.ignore:
-				pass
-			elif item == ")":
 				pass
 			elif self.kp.match(item):
 				pass
