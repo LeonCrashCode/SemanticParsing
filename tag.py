@@ -76,7 +76,7 @@ class Tag:
 		self.tag_to_ix[self.rel_card] = len(self.tag_to_ix)
 		self.ix_to_tag.append(self.rel_card) #14
 		self.tag_to_ix[self.rel_eq] = len(self.tag_to_ix)
-		self.ix_to_tag.append(self.rel_eq) #14
+		self.ix_to_tag.append(self.rel_eq) #15
 
 		self.global_start = len(self.tag_to_ix)
 		for tag in self.relation_global:
