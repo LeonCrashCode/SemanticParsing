@@ -2,13 +2,13 @@ import sys
 import re
 class Eval:
 	def __init__(self):
-		self.ignore = ["SDRS(", "DRS(", "NOT(", "NEC(", "POS(", "OR(", "DUPLEX(", "IMP(", ")"]
+		self.ignore = ["<SOS>", "<EOS>", "SDRS(", "DRS(", "NOT(", "NEC(", "POS(", "OR(", "DUPLEX(", "IMP(", ")"]
 		
 		self.kp = re.compile("^K[0-9]+\(?$")
-		self.pp = re.compile("^K[0-9]+\(?$")
-		self.xp = re.compile("^K[0-9]+\(?$")
-		self.ep = re.compile("^K[0-9]+\(?$")
-		self.sp = re.compile("^K[0-9]+\(?$")
+		self.pp = re.compile("^P[0-9]+\(?$")
+		self.xp = re.compile("^X[0-9]+\(?$")
+		self.ep = re.compile("^E[0-9]+\(?$")
+		self.sp = re.compile("^S[0-9]+\(?$")
 
 	def eval(self, outputs, golds):
 		assert len(outputs) == len(golds)
@@ -32,7 +32,8 @@ class Eval:
 	def _eval(self, output, gold):
 		o = self._get_relation_set(output)
 		g = self._get_relation_set(gold)
-
+		print o
+		print g
 		p_base = len(o)
 		r_base = len(g)
 
@@ -46,7 +47,9 @@ class Eval:
 	def _get_relation_set(self, drs):
 		drs = drs.split()
 		re = []
-		for item in drs:
+
+		for i in range(len(drs)):
+			item = drs[i]
 			if item in self.ignore:
 				pass
 			elif self.kp.match(item):
@@ -60,17 +63,20 @@ class Eval:
 			elif self.sp.match(item):
 				pass
 			else:
+				if i+3 < len(drs) and drs[i+3] == ")":
+					re.append(" ".join(drs[i:i+2]))
+				elif i+2 < len(drs) and drs[i+2] == ")":
+					re.append(" ".join(drs[i:i+3]))
 
-				re.append(item)
 		return re
 L1 = []
 for line in open(sys.argv[1]):
 	line = line.strip()
-		L1.append(line)
+	L1.append(line)
 L2 = []
 for line in open(sys.argv[2]):
-        line = line.strip()
-                L1.append(line)
-eval = Eval(L1, L2)
+	line = line.strip()
+	L2.append(line)
+eval = Eval()
 
-print eval.eval(L,L)
+print eval.eval(L1,L2)
