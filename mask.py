@@ -130,7 +130,7 @@ class SimpleMask:
 	def _get_ones(self, size):
 		return [self.need for i in range(size)]
 
-
+"""
 class StructuredMask:
 	#sdrs should have at least two k(), at least one relation, and the relation should follow k()
 	#drs should have at least anything, except variables.
@@ -395,4 +395,4 @@ class StructuredMask:
 		return [self.need for i in range(size)]
 
 
-			
+"""			

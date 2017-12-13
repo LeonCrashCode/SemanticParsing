@@ -277,9 +277,9 @@ def trainIters(trn_instances, dev_instances, encoder, decoder, print_every=100, 
             print('epoch %.6f : %.10f' % (iter*1.0 / len(trn_instances), print_loss_avg))
 
         if iter % evaluate_every == 0:
-            evaluate(trn_instances[0:10], encoder, decoder)
-            evaluate(dev_instances[0:10], encoder, decoder)
-def evaluate(instances, encoder, decoder):
+            evaluate(dev_instances, encoder, decoder, str(int(iter/evaluate_every)))
+def evaluate(instances, encoder, decoder, part):
+    out = open("dev_output/"+part,"w")
     for instance in instances:
         sentence_variable = []
         target_variable = Variable(torch.LongTensor([ x[1] for x in instance[3]]))
@@ -294,12 +294,15 @@ def evaluate(instances, encoder, decoder):
             sentence_variable.append(Variable(instance[2]))
         tokens = decode(sentence_variable, target_variable, encoder, decoder)
 
+	output = []
         for type, tok in tokens:
             if type >= 0:
-                print decoder.tags_info.ix_to_lemma[tok],
+                output.append(decoder.tags_info.ix_to_lemma[tok])
             else:
-                print decoder.tags_info.ix_to_tag[tok],
-        print
+                output.append(decoder.tags_info.ix_to_tag[tok])
+        out.write(" ".join(output)+"\n")
+	out.flush()
+    out.close()
 #####################################################################################
 #####################################################################################
 #####################################################################################
