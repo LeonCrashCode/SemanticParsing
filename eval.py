@@ -32,8 +32,6 @@ class Eval:
 	def _eval(self, output, gold):
 		o = self._get_relation_set(output)
 		g = self._get_relation_set(gold)
-		print o
-		print g
 		p_base = len(o)
 		r_base = len(g)
 
@@ -64,7 +62,7 @@ class Eval:
 				pass
 			else:
 				if i+3 < len(drs) and drs[i+3] == ")":
-					re.append(" ".join(drs[i:i+2]))
+					re.append(" ".join(drs[i:i+4]))
 				elif i+2 < len(drs) and drs[i+2] == ")":
 					re.append(" ".join(drs[i:i+3]))
 
