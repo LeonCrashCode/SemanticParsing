@@ -130,7 +130,6 @@ class SimpleMask:
 	def _get_ones(self, size):
 		return [self.need for i in range(size)]
 
-
 class StructuredMask:
 	#sdrs should have at least two k(), at least one relation, and the relation should follow k()
 	#drs should have at least anything, except variables.
@@ -139,7 +138,7 @@ class StructuredMask:
 	#timex should be timex(variables, TIME_NUMBER)
 	#card should be card(variables, CARD_NUMBER)
 	#k(, p( should have and only have one drs or sdrs
-	#variables index constraints
+	#variable constrains
 	def __init__(self, tags_info, encoder_input_size=0):
 		self.tags_info = tags_info
 		self.mask = 0
@@ -161,6 +160,8 @@ class StructuredMask:
 		self.stack = [self.SOS]
 		self.encoder_input_size = encoder_input_size
 		self.stack_ex = [[0 for i in range(6)]]
+
+		self.stack_variables = []
 		self.k = 1
 		self.p = 1
 		self.x = 1
@@ -169,23 +170,24 @@ class StructuredMask:
 
 	def get_all_mask(self, inputs):
 		res = []
+		self._print_state()
 		res.append(self.get_step_mask())
+		print res[-1]
 		for type, ix in inputs:
-			#self._print_state()
-			#print res[-1]
 			if type == -2:
 				assert res[-1][ix] != self.mask
 			else:
 				assert res[-1][type+self.tags_info.tag_size] != self.mask
 			self.update(type, ix)
+			self._print_state()
 			res.append(self.get_step_mask())
+			print res[-1]
 		return res
 
 	def get_step_mask(self):
 		if self.stack[-1] == self.SOS:
-			re = self._get_zeros(self.tags_info.tag_size) + self._get_zeros(self.encoder_input_size)
-			re[self.tags_info.tag_to_ix[self.tags_info.rel_drs]] = self.need
-			return re
+			#SOS
+			return self._get_sos_mask()
 		elif self.stack[-1] == 5:
 			#SDRS
 			return self._get_sdrs_mask()
@@ -212,15 +214,22 @@ class StructuredMask:
 			return self._get_1_mask()
 		else:
 			assert False
+	def _get_sos_mask(self):
+		if self.stack_ex[-1][self.drs_offset] == 0:
+			re = self._get_zeros(self.tags_info.tag_size) + self._get_zeros(self.encoder_input_size)
+			re[self.tags_info.tag_to_ix[self.tags_info.rel_drs]] = self.need
+			return re
+		else:
+			re = self._get_zeros(self.tags_info.tag_size) + self._get_zeros(self.encoder_input_size)
+			re[1] = self.need
+			return re
 	def _get_sdrs_mask(self):
 		#SDRS
 		if self.stack_ex[-1][self.k_relation_offset] < 2:
 			#only k
 			re = self._get_zeros(self.tags_info.tag_size) + self._get_zeros(self.encoder_input_size)
-			idx = self.tags_info.k_rel_start
-			while idx < self.tags_info.p_rel_start:
-				re[idx] = self.need
-				idx += 1
+			idx = self.tags_info.k_rel_start + self.k - 1
+			re[idx] = self.need
 			return re
 		elif self.stack_ex[-1][self.relation_offset] == 0:
 			#only relation
@@ -231,10 +240,8 @@ class StructuredMask:
 				idx += 1
 			if self.relation_count <= 200:
 				# k is ok
-				idx = self.tags_info.k_rel_start
-				while idx < self.tags_info.p_rel_start:
-					re[idx] = self.need
-					idx += 1
+				idx = self.tags_info.k_rel_start + self.k - 1
+				re[idx] = self.need
 			return re
 		else:
 			#only reduce
@@ -314,8 +321,8 @@ class StructuredMask:
 	def _get_timex_mask(self):
 		if self.stack_ex[-1][self.variable_offset] == 0:
 			re = self._get_zeros(self.tags_info.tag_size) + self._get_zeros(self.encoder_input_size)
-			idx = self.tags_info.k_tag_start
-			while idx < self.tags_info.tag_size:
+			idx = self.tags_info.x_tag_start
+			while idx < self.tags_info.e_tag_start and idx < self.tags_info.x_tag_start + self.x:
 				re[idx] = self.need
 				idx += 1
 			return re
@@ -330,8 +337,8 @@ class StructuredMask:
 	def _get_card_mask(self):
 		if self.stack_ex[-1][self.variable_offset] == 0:
 			re = self._get_zeros(self.tags_info.tag_size) + self._get_zeros(self.encoder_input_size)
-			idx = self.tags_info.k_tag_start
-			while idx < self.tags_info.tag_size:
+			idx = self.tags_info.x_tag_start
+			while idx < self.tags_info.e_tag_start and idx < self.tags_info.x_tag_start + self.x:
 				re[idx] = self.need
 				idx += 1
 			return re
@@ -344,14 +351,58 @@ class StructuredMask:
 			re[4] = self.need
 			return re
 	def _get_relation_mask(self):
-		if self.stack_ex[-1][self.variable_offset] <= 1:
+		if self.stack_ex[-1][self.variable_offset] == 0:
 			re = self._get_zeros(self.tags_info.tag_size) + self._get_zeros(self.encoder_input_size)
-			idx = self.tags_info.k_tag_start
-			while idx < self.tags_info.tag_size:
-				re[idx] = self.need
-				idx += 1
-			if self.stack_ex[-1][self.variable_offset] == 1:
-				re[4] = self.need
+			if self.stack[-2] == 5: #sdrs, the variables should be k
+				idx = self.tags_info.k_tag_start
+				while idx < self.tags_info.p_tag_start and idx < self.tags_info.k_tag_start + self.k - 1: #only generate from exist k
+					re[idx] = self.need
+					idx += 1
+			else:
+				idx = self.tags_info.p_tag_start
+				while idx < self.tags_info.x_tag_start and idx < self.tags_info.p_tag_start + self.p:
+					re[idx] = self.need
+					idx += 1
+				idx = self.tags_info.x_tag_start
+				while idx < self.tags_info.e_tag_start and idx < self.tags_info.x_tag_start + self.x:
+					re[idx] = self.need
+					idx += 1
+				idx = self.tags_info.e_tag_start
+				while idx < self.tags_info.s_tag_start and idx < self.tags_info.e_tag_start + self.e:
+					re[idx] = self.need
+					idx += 1
+				idx = self.tags_info.s_tag_start
+				while idx < self.tags_info.tag_size and idx < self.tags_info.s_tag_start + self.s:
+					re[idx] = self.need
+					idx += 1
+			return re
+		elif self.stack_ex[-1][self.variable_offset] == 1:
+			re = self._get_zeros(self.tags_info.tag_size) + self._get_zeros(self.encoder_input_size)
+			re[4] = self.need # could reduce
+			if self.stack[-2] == 5: #sdrs, the variables should be k
+				idx = self.tags_info.k_tag_start
+				while idx < self.tags_info.p_tag_start and idx < self.tags_info.k_tag_start + self.k - 1: #only generate from exist k
+					re[idx] = self.need
+					idx += 1
+				
+			else:
+				idx = self.tags_info.p_tag_start
+				while idx < self.tags_info.x_tag_start and idx < self.tags_info.p_tag_start + self.p:
+					re[idx] = self.need
+					idx += 1
+				idx = self.tags_info.x_tag_start
+				while idx < self.tags_info.e_tag_start and idx < self.tags_info.x_tag_start + self.x:
+					re[idx] = self.need
+					idx += 1
+				idx = self.tags_info.e_tag_start
+				while idx < self.tags_info.s_tag_start and idx < self.tags_info.e_tag_start + self.e:
+					re[idx] = self.need
+					idx += 1
+				idx = self.tags_info.s_tag_start
+				while idx < self.tags_info.tag_size and idx < self.tags_info.s_tag_start + self.s:
+					re[idx] = self.need
+					idx += 1
+			re[self.stack_variables[-1]] = self.mask #make sure two variables are different
 			return re
 		else:
 			re = self._get_zeros(self.tags_info.tag_size) + self._get_zeros(self.encoder_input_size)
@@ -364,18 +415,30 @@ class StructuredMask:
 				self.stack.append(ix)
 				self.relation_count += 1
 				self.stack_ex.append([0 for i in range(6)])
+				self.stack_variables.append(-1)
 			elif ix >= self.tags_info.global_start and ix < self.tags_info.k_rel_start:
 				self.stack.append(self.relation)
 				self.relation_count += 1
 				self.stack_ex.append([0 for i in range(6)])
+				self.stack_variables.append(-1)
 			elif ix >= self.tags_info.k_rel_start and ix < self.tags_info.p_rel_start:
 				self.stack.append(self.tags_info.k_rel_start)
 				self.relation_count += 1
 				self.stack_ex.append([0 for i in range(6)])
+				self.stack_variables.append(-1)
+
+				assert self.k >= ix - self.tags_info.k_rel_start + 1
+				if self.k == ix - self.tags_info.k_rel_start + 1:
+					self.k += 1
 			elif ix >= self.tags_info.p_rel_start and ix < self.tags_info.k_tag_start:
 				self.stack.append(self.tags_info.p_rel_start)
 				self.relation_count += 1
 				self.stack_ex.append([0 for i in range(6)])
+				self.stack_variables.append(-1)
+
+				assert self.p >= ix - self.tags_info.p_rel_start + 1
+				if self.p == ix - self.tags_info.p_rel_start + 1:
+					self.p += 1
 			elif ix == 4:
 				self.stack_ex.pop()
 				if self.stack[-1] == 5 or self.stack[-1] == 6:
@@ -393,21 +456,50 @@ class StructuredMask:
 				else:
 					assert False
 				self.stack.pop()
+				while self.stack_variables[-1] > 0:
+					self.stack_variables.pop()
+				self.stack_variables.pop()
 			else:
 				self.stack_ex[-1][self.variable_offset] += 1
+				self.stack_variables.append(ix)
+				if ix >= self.tags_info.k_tag_start and ix < self.tags_info.p_tag_start:
+					assert self.k >= ix - self.tags_info.k_tag_start + 1
+					if self.k == ix - self.tags_info.k_tag_start + 1:
+						self.k += 1
+				elif ix >= self.tags_info.p_tag_start and ix < self.tags_info.x_tag_start:
+					assert self.p >= ix - self.tags_info.p_tag_start + 1
+					if self.p == ix - self.tags_info.p_tag_start + 1:
+						self.p += 1
+				elif ix >= self.tags_info.x_tag_start and ix < self.tags_info.e_tag_start:
+					assert self.x >= ix - self.tags_info.x_tag_start + 1
+					if self.x == ix - self.tags_info.x_tag_start + 1:
+						self.x += 1
+				elif ix >= self.tags_info.e_tag_start and ix < self.tags_info.s_tag_start:
+					assert self.e >= ix - self.tags_info.e_tag_start + 1
+					if self.e == ix - self.tags_info.e_tag_start + 1:
+						self.e += 1
+				elif ix >= self.tags_info.s_tag_start and ix < self.tags_info.tag_size:
+					assert self.s >= ix - self.tags_info.s_tag_start + 1
+					if self.s == ix - self.tags_info.s_tag_start + 1:
+						self.s += 1
+
 		else:
 			self.stack.append(self.relation)
 			self.relation_count += 1
 			self.stack_ex.append([0 for i in range(6)])
-
+			self.stack_variables.append(-1)
 
 	def _print_state(self):
 		print "relation_count", self.relation_count
 		print "stack", self.stack
 		print "stack_ex", self.stack_ex
+		print "stack_variables", self.stack_variables
+		print "kpxes", self.k, self.p, self.x, self.e, self.s
 	def _get_zeros(self, size):
 		return [self.mask for i in range(size)]
 
 	def _get_ones(self, size):
 		return [self.need for i in range(size)]
+
+
 
