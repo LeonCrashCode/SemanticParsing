@@ -402,7 +402,7 @@ class StructuredMask:
 				while idx < self.tags_info.tag_size and idx < self.tags_info.s_tag_start + self.s:
 					re[idx] = self.need
 					idx += 1
-			if self.stack[-2] == 15: # special case 
+			if self.stack[-1] == 15: # special case 
 				pass
 			else:
 				re[self.stack_variables[-1]] = self.mask #make sure two variables are different
