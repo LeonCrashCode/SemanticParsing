@@ -130,7 +130,7 @@ class SimpleMask:
 	def _get_ones(self, size):
 		return [self.need for i in range(size)]
 
-"""
+
 class StructuredMask:
 	#sdrs should have at least two k(), at least one relation, and the relation should follow k()
 	#drs should have at least anything, except variables.
@@ -139,9 +139,9 @@ class StructuredMask:
 	#timex should be timex(variables, TIME_NUMBER)
 	#card should be card(variables, CARD_NUMBER)
 	#k(, p( should have and only have one drs or sdrs
+	#variables index constraints
 	def __init__(self, tags_info, encoder_input_size=0):
 		self.tags_info = tags_info
-		self.reset(encoder_input_size)
 		self.mask = 0
 		self.need = 1
 
@@ -155,17 +155,24 @@ class StructuredMask:
 		self.drs_offset = 4
 		self.six_offset = 5
 		
-
+		self.reset(encoder_input_size)
 	def reset(self, encoder_input_size):
 		self.relation_count = 0
 		self.stack = [self.SOS]
 		self.encoder_input_size = encoder_input_size
-		self.stack_ex = []
+		self.stack_ex = [[0 for i in range(6)]]
+		self.k = 1
+		self.p = 1
+		self.x = 1
+		self.e = 1
+		self.s = 1
 
 	def get_all_mask(self, inputs):
 		res = []
 		res.append(self.get_step_mask())
 		for type, ix in inputs:
+			#self._print_state()
+			#print res[-1]
 			if type == -2:
 				assert res[-1][ix] != self.mask
 			else:
@@ -185,7 +192,6 @@ class StructuredMask:
 		elif self.stack[-1] == 6:
 			#DRS
 			return self._get_drs_mask()
-
 		elif self.stack[-1] in [7, 8, 9]:
 			#not, nec, pos
 			return self._get_1_mask()
@@ -241,26 +247,23 @@ class StructuredMask:
 					idx += 1
 				idx = self.tags_info.tag_size
 				while idx < len(re):
-					re[ix] = self.need
+					re[idx] = self.need
 					idx += 1
 			return re
 	def _get_drs_mask(self):
-		if (self.stack_ex[-1][self.relation_offset] + self.stack_ex[-1][self.six_offset] + self.stack_ex[-1][self.p_relation_offset]) != 0 and self.relation_count > 200:
-			#only reduce
-			re = self._get_zeros(self.tags_info.tag_size) + self._get_zeros(self.encoder_input_size)
-			re[self.tags_info.tag_to_ix[self.tags_info.reduce]] = self.need
-			return re
-		else:
-			#only relation
+		if (self.stack_ex[-1][self.relation_offset] + self.stack_ex[-1][self.six_offset] + self.stack_ex[-1][self.p_relation_offset]) == 0:
 			re = self._get_ones(self.tags_info.tag_size) + self._get_ones(self.encoder_input_size)
 			re[0] = self.mask #SOS
 			re[1] = self.mask #EOS
 			re[2] = self.mask #TIME_NUMBER
 			re[3] = self.mask #CARD_NUMBER
-			if (self.stack_ex[-1][self.relation_offset] + self.stack_ex[-1][self.six_offset] + self.stack_ex[-1][self.p_relation_offset]) == 0
-				re[4] = self.mask #reduce
+			re[4] = self.mask #reduce
 			re[5] = self.mask #sdrs
 			re[6] = self.mask #drs
+			idx = self.tags_info.k_tag_start
+			while idx < self.tags_info.tag_size:
+				re[idx] = self.mask
+				idx += 1
 			if self.relation_count > 200:
 				re[7] = self.mask
 				re[8] = self.mask
@@ -268,12 +271,25 @@ class StructuredMask:
 				re[10] = self.mask
 				re[11] = self.mask
 				re[12] = self.mask
-			idx = self.tags_info.k_tag_start
-			while idx < self.tags_info.tag_size:
-				re[idx] = self.mask
-				idx += 1
-
 			return re
+		else:
+			if self.relation_count <= 200:
+				re = self._get_ones(self.tags_info.tag_size) + self._get_ones(self.encoder_input_size)
+				re[0] = self.mask #SOS
+				re[1] = self.mask #EOS
+				re[2] = self.mask #TIME_NUMBER
+				re[3] = self.mask #CARD_NUMBER
+				re[5] = self.mask #sdrs
+				re[6] = self.mask #drs
+				idx = self.tags_info.k_tag_start
+				while idx < self.tags_info.tag_size:
+					re[idx] = self.mask
+					idx += 1
+				return re
+			else:
+				re = self._get_zeros(self.tags_info.tag_size) + self._get_zeros(self.encoder_input_size)
+				re[self.tags_info.tag_to_ix[self.tags_info.reduce]] = self.need
+				return re
 	def _get_1_mask(self):
 		if self.stack_ex[-1][self.drs_offset] == 0:
 			re = self._get_zeros(self.tags_info.tag_size) + self._get_zeros(self.encoder_input_size)
@@ -305,7 +321,7 @@ class StructuredMask:
 			return re
 		elif self.stack_ex[-1][self.variable_offset] == 1:
 			re = self._get_zeros(self.tags_info.tag_size) + self._get_zeros(self.encoder_input_size)
-			re[2] = self.need
+			re[3] = self.need
 			return re
 		else:
 			re = self._get_zeros(self.tags_info.tag_size) + self._get_zeros(self.encoder_input_size)
@@ -321,7 +337,7 @@ class StructuredMask:
 			return re
 		elif self.stack_ex[-1][self.variable_offset] == 1:
 			re = self._get_zeros(self.tags_info.tag_size) + self._get_zeros(self.encoder_input_size)
-			re[3] = self.need
+			re[2] = self.need
 			return re
 		else:
 			re = self._get_zeros(self.tags_info.tag_size) + self._get_zeros(self.encoder_input_size)
@@ -370,9 +386,9 @@ class StructuredMask:
 					self.stack_ex[-1][self.relation_offset] += 1
 				elif self.stack[-1] == self.relation:
 					self.stack_ex[-1][self.relation_offset] += 1
-				elif self.stack[-1] == self.tags_infe.k_rel_start:
+				elif self.stack[-1] == self.tags_info.k_rel_start:
 					self.stack_ex[-1][self.k_relation_offset] += 1
-				elif self.stack[-1] == self.tags_infe.p_rel_start:
+				elif self.stack[-1] == self.tags_info.p_rel_start:
 					self.stack_ex[-1][self.p_relation_offset] += 1
 				else:
 					assert False
@@ -388,11 +404,10 @@ class StructuredMask:
 	def _print_state(self):
 		print "relation_count", self.relation_count
 		print "stack", self.stack
+		print "stack_ex", self.stack_ex
 	def _get_zeros(self, size):
 		return [self.mask for i in range(size)]
 
 	def _get_ones(self, size):
 		return [self.need for i in range(size)]
 
-
-"""			

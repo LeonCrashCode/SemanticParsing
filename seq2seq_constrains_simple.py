@@ -11,7 +11,7 @@ import torch.nn.functional as F
 import os
 os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 
-from mask import SimpleMask
+from mask import StructuredMask
 
 use_cuda = torch.cuda.is_available()
 
@@ -237,7 +237,7 @@ def trainIters(trn_instances, dev_instances, encoder, decoder, print_every=100, 
     for instance in trn_instances:
         decoder.mask_pool.reset(len(instance[0]))
         masks.append(decoder.mask_pool.get_all_mask(instance[3]))
-
+    exit(1)
     idx = -1
     iter = 0
     while True:
@@ -342,7 +342,7 @@ for sentence, _, lemmas, tags in trn_data:
 tags_info = Tag(tag_info_file, ix_to_lemma)
 SOS = tags_info.SOS
 EOS = tags_info.EOS
-mask_pool = SimpleMask(tags_info)
+mask_pool = StructuredMask(tags_info)
 ##############################################
 ##
 #mask_info = Mask(tags)
