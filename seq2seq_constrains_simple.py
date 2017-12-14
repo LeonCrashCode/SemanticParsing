@@ -235,7 +235,7 @@ def trainIters(trn_instances, dev_instances, encoder, decoder, print_every=100, 
     masks = []
 
     for instance in trn_instances:
-        print "=========="
+        #print "=========="
         decoder.mask_pool.reset(len(instance[0]))
         masks.append(decoder.mask_pool.get_all_mask(instance[3]))
     idx = -1

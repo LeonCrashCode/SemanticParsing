@@ -170,18 +170,18 @@ class StructuredMask:
 
 	def get_all_mask(self, inputs):
 		res = []
-		self._print_state()
+		#self._print_state()
 		res.append(self.get_step_mask())
-		print res[-1]
+		#print res[-1]
 		for type, ix in inputs:
 			if type == -2:
 				assert res[-1][ix] != self.mask
 			else:
 				assert res[-1][type+self.tags_info.tag_size] != self.mask
 			self.update(type, ix)
-			self._print_state()
+			#self._print_state()
 			res.append(self.get_step_mask())
-			print res[-1]
+			#print res[-1]
 		return res
 
 	def get_step_mask(self):
@@ -402,7 +402,10 @@ class StructuredMask:
 				while idx < self.tags_info.tag_size and idx < self.tags_info.s_tag_start + self.s:
 					re[idx] = self.need
 					idx += 1
-			re[self.stack_variables[-1]] = self.mask #make sure two variables are different
+			if self.stack[-2] == 15: # special case 
+				pass
+			else:
+				re[self.stack_variables[-1]] = self.mask #make sure two variables are different
 			return re
 		else:
 			re = self._get_zeros(self.tags_info.tag_size) + self._get_zeros(self.encoder_input_size)
