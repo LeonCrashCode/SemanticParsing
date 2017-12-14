@@ -235,9 +235,9 @@ def trainIters(trn_instances, dev_instances, encoder, decoder, print_every=100, 
     masks = []
 
     for instance in trn_instances:
+        print "=========="
         decoder.mask_pool.reset(len(instance[0]))
         masks.append(decoder.mask_pool.get_all_mask(instance[3]))
-        exit(1)
     idx = -1
     iter = 0
     while True:
@@ -319,10 +319,10 @@ dev_file = "dev.input"
 tst_file = "test.input"
 pretrain_file = "sskip.100.vectors"
 tag_info_file = "tag.info"
-trn_file = "train.input.part"
-dev_file = "dev.input.part"
-tst_file = "test.input.part"
-pretrain_file = "sskip.100.vectors.part"
+#trn_file = "train.input.part"
+#dev_file = "dev.input.part"
+#tst_file = "test.input.part"
+#pretrain_file = "sskip.100.vectors.part"
 UNK = "<UNK>"
 
 trn_data = readfile(trn_file)
