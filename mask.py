@@ -325,6 +325,14 @@ class StructuredMask:
 			while idx < self.tags_info.e_tag_start and idx < self.tags_info.x_tag_start + self.x:
 				re[idx] = self.need
 				idx += 1
+			idx = self.tags_info.e_tag_start
+			while idx < self.tags_info.s_tag_start and idx < self.tags_info.e_tag_start + self.e:
+				re[idx] = self.need
+				idx += 1
+			idx = self.tags_info.s_tag_start
+			while idx < self.tags_info.tag_size and idx < self.tags_info.s_tag_start + self.s:
+				re[idx] = self.need
+				idx += 1
 			return re
 		elif self.stack_ex[-1][self.variable_offset] == 1:
 			re = self._get_zeros(self.tags_info.tag_size) + self._get_zeros(self.encoder_input_size)
@@ -339,6 +347,14 @@ class StructuredMask:
 			re = self._get_zeros(self.tags_info.tag_size) + self._get_zeros(self.encoder_input_size)
 			idx = self.tags_info.x_tag_start
 			while idx < self.tags_info.e_tag_start and idx < self.tags_info.x_tag_start + self.x:
+				re[idx] = self.need
+				idx += 1
+			idx = self.tags_info.e_tag_start
+			while idx < self.tags_info.s_tag_start and idx < self.tags_info.e_tag_start + self.e:
+				re[idx] = self.need
+				idx += 1
+			idx = self.tags_info.s_tag_start
+			while idx < self.tags_info.tag_size and idx < self.tags_info.s_tag_start + self.s:
 				re[idx] = self.need
 				idx += 1
 			return re
