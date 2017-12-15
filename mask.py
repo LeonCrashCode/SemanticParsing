@@ -269,7 +269,7 @@ class StructuredMask:
 				re[idx] = self.need
 				idx += 1
 			idx = self.tags_info.p_rel_start
-			while idx < self.tags_info.k_tag_start and idx < self.p + self.tags_info.p_rel_start
+			while idx < self.tags_info.k_tag_start and idx < self.p + self.tags_info.p_rel_start:
 				re[idx] = self.need
 				idx += 1
 
@@ -300,7 +300,7 @@ class StructuredMask:
 					re[idx] = self.need
 					idx += 1
 				idx = self.tags_info.p_rel_start
-				while idx < self.tags_info.k_tag_start and idx < self.p + self.tags_info.p_rel_start
+				while idx < self.tags_info.k_tag_start and idx < self.p + self.tags_info.p_rel_start:
 					re[idx] = self.need
 					idx += 1
 				return re
