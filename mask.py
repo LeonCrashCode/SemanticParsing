@@ -259,38 +259,49 @@ class StructuredMask:
 			return re
 	def _get_drs_mask(self):
 		if (self.stack_ex[-1][self.relation_offset] + self.stack_ex[-1][self.six_offset] + self.stack_ex[-1][self.p_relation_offset]) == 0:
-			re = self._get_ones(self.tags_info.tag_size) + self._get_ones(self.encoder_input_size)
-			re[0] = self.mask #SOS
-			re[1] = self.mask #EOS
-			re[2] = self.mask #TIME_NUMBER
-			re[3] = self.mask #CARD_NUMBER
-			re[4] = self.mask #reduce
-			re[5] = self.mask #sdrs
-			re[6] = self.mask #drs
-			idx = self.tags_info.k_tag_start
-			while idx < self.tags_info.tag_size:
-				re[idx] = self.mask
+			re = self._get_zeros(self.tags_info.tag_size) + self._get_ones(self.encoder_input_size)
+			re[13] = self.need #time
+			re[14] = self.need #card
+			re[15] = self.need #eq
+
+			idx = self.tags_info.global_start
+			while idx < self.tags_info.k_rel_start:
+				re[idx] = self.need
 				idx += 1
-			if self.relation_count > 200:
-				re[7] = self.mask
-				re[8] = self.mask
-				re[9] = self.mask
-				re[10] = self.mask
-				re[11] = self.mask
-				re[12] = self.mask
+			idx = self.tags_info.p_rel_start
+			while idx < self.tags_info.k_tag_start and idx < self.p + self.tags_info.p_rel_start
+				re[idx] = self.need
+				idx += 1
+
+			if self.relation_count <= 200:
+				re[7] = self.need
+				re[8] = self.need
+				re[9] = self.need
+				re[10] = self.need
+				re[11] = self.need
+				re[12] = self.need
 			return re
 		else:
 			if self.relation_count <= 200:
-				re = self._get_ones(self.tags_info.tag_size) + self._get_ones(self.encoder_input_size)
-				re[0] = self.mask #SOS
-				re[1] = self.mask #EOS
-				re[2] = self.mask #TIME_NUMBER
-				re[3] = self.mask #CARD_NUMBER
-				re[5] = self.mask #sdrs
-				re[6] = self.mask #drs
-				idx = self.tags_info.k_tag_start
-				while idx < self.tags_info.tag_size:
-					re[idx] = self.mask
+				re = self._get_zeros(self.tags_info.tag_size) + self._get_ones(self.encoder_input_size)
+				re[4] = self.need #reduce
+				re[7] = self.need
+				re[8] = self.need
+				re[9] = self.need
+				re[10] = self.need
+				re[11] = self.need
+				re[12] = self.need
+				re[13] = self.need #time
+				re[14] = self.need #card
+				re[15] = self.need #eq
+
+				idx = self.tags_info.global_start
+				while idx < self.tags_info.k_rel_start:
+					re[idx] = self.need
+					idx += 1
+				idx = self.tags_info.p_rel_start
+				while idx < self.tags_info.k_tag_start and idx < self.p + self.tags_info.p_rel_start
+					re[idx] = self.need
 					idx += 1
 				return re
 			else:
