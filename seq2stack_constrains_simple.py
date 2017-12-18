@@ -103,6 +103,8 @@ class AttnDecoderRNN(nn.Module):
                 embedded = self.tag_embeds(input[idx]).view(1, 1, -1)
                 embedded = self.dropout(embedded)
                 print stack
+                print [x.size() in stack_rep]
+                print [x[0].size() in stack_hidden]
                 ix = input[idx].data[0]
                 if ix != 4:
                     if ix == 0:
@@ -188,7 +190,7 @@ class AttnDecoderRNN(nn.Module):
                         stack_rep.pop()
                         stack_hidden.pop()
                         end -= 1
-                    stack_rep.append(tree_output)
+                    stack_rep.append(torch.sum(tree_output.view(2,1,-1),0))
 
                 output, hidden = self.lstm(stack_rep[-1], stack_hidden[-1])
                 stack_hidden.append(hidden)
