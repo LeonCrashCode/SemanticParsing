@@ -158,8 +158,6 @@ class AttnDecoderRNN(nn.Module):
 
 def train(sentence_variable, target_variable, gold_variable, mask_variable, encoder, decoder, encoder_optimizer, decoder_optimizer, criterion, back_prop=True):
     encoder_hidden = encoder.initHidden()
-    if back_prop==False:
-        encoder_hidden.volatile=True
 
     encoder_optimizer.zero_grad()
     decoder_optimizer.zero_grad()
@@ -198,7 +196,6 @@ def train(sentence_variable, target_variable, gold_variable, mask_variable, enco
 
 def decode(sentence_variable, target_variable, encoder, decoder):
     encoder_hidden = encoder.initHidden()
-    encoder_hidden.volatile=True
 
     encoder_output, encoder_hidden = encoder(sentence_variable, encoder_hidden)
     
@@ -353,7 +350,7 @@ dev_file = "dev.input"
 tst_file = "test.input"
 pretrain_file = "sskip.100.vectors"
 tag_info_file = "tag.info"
-#trn_file = "train.input.part2"
+#trn_file = "train.input.part"
 #dev_file = "dev.input.part"
 #tst_file = "test.input.part"
 #pretrain_file = "sskip.100.vectors.part"
