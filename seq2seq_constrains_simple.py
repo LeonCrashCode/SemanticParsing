@@ -310,7 +310,7 @@ def trainIters(trn_instances, dev_instances, encoder, decoder, print_every=100, 
                     dev_sentence_variable.append(Variable(dev_instances[dev_idx][2])) 
                 dev_loss += train(dev_sentence_variable, dev_target_variable, dev_gold_variable, dev_mask_variable, encoder, decoder, encoder_optimizer, decoder_optimizer, criterion, back_prop=False)
                 dev_idx += 1
-            print('dev loss %.10f' % (dev_loss))
+            print('dev loss %.10f' % (dev_loss/len(dev_instances)))
             evaluate(dev_instances, encoder, decoder, str(int(iter/evaluate_every)))
 def evaluate(instances, encoder, decoder, part):
     out = open("dev_output/"+part,"w")
