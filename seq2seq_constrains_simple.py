@@ -88,7 +88,7 @@ class AttnDecoderRNN(nn.Module):
         if use_cuda:
             self.selective_matrix = self.selective_matrix.cuda(device)
 
-    def forward(self, sentence_variable, input, hidden, encoder_output, train=True, ask_variable=None):
+    def forward(self, sentence_variable, input, hidden, encoder_output, train=True, mask_variable=None):
 
         if train:
             self.lstm.dropout = self.dropout_p
