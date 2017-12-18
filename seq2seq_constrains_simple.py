@@ -94,7 +94,7 @@ class AttnDecoderRNN(nn.Module):
             self.lstm.dropout = self.dropout_p
             embedded = self.tag_embeds(input).unsqueeze(1)
             embedded = self.dropout(embedded)
-            
+
             output, hidden = self.lstm(embedded, hidden)
             
             selective_score = torch.bmm(torch.bmm(output.transpose(0,1), self.selective_matrix), encoder_output.transpose(0,1).transpose(1,2)).view(output.size(0), -1)
@@ -181,9 +181,8 @@ def train(sentence_variable, target_variable, gold_variable, mask_variable, enco
     #decoder_hidden = decoder.initHidden()
     decoder_hidden = (torch.cat((encoder_hidden[0][-2], encoder_hidden[0][-1]), 1).unsqueeze(0),torch.cat((encoder_hidden[1][-2], encoder_hidden[1][-1]), 1).unsqueeze(0))
 
-    decoder_output = decoder(sentence_variable, decoder_input, decoder_hidden, encoder_output, train=True, mask_variable=mask_variable) 
+    decoder_output = decoder(sentence_variable, decoder_input, decoder_hidden, encoder_output, train=True, back_prop=back_prop, mask_variable=mask_variable) 
     
-
     gold_variable = torch.cat((gold_variable, Variable(torch.LongTensor([decoder.tags_info.tag_to_ix[EOS]]))))
     gold_variable = gold_variable.cuda(device) if use_cuda else gold_variable
 
@@ -208,7 +207,7 @@ def decode(sentence_variable, target_variable, encoder, decoder):
 
     decoder_hidden = (torch.cat((encoder_hidden[0][-2], encoder_hidden[0][-1]), 1).unsqueeze(0),torch.cat((encoder_hidden[1][-2], encoder_hidden[1][-1]), 1).unsqueeze(0))
 
-    tokens = decoder(sentence_variable, decoder_input, decoder_hidden, encoder_output, train=False)
+    tokens = decoder(sentence_variable, decoder_input, decoder_hidden, encoder_output, train=False, back_prop=False)
 
     return tokens.view(-1,2).data.tolist()
 
