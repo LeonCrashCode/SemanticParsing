@@ -161,7 +161,7 @@ class AttnDecoderRNN(nn.Module):
                 Variable(torch.zeros(1, 1, self.hidden_dim)))
             return result
 
-def train(sentence_variable, target_variable, gold_variable, mask_variable, encoder, decoder, encoder_optimizer, decoder_optimizer, criterion):
+def train(sentence_variable, target_variable, gold_variable, mask_variable, encoder, decoder, encoder_optimizer, decoder_optimizer, criterion, back_prop=True):
     encoder_hidden = encoder.initHidden()
 
     encoder_optimizer.zero_grad()
@@ -189,10 +189,11 @@ def train(sentence_variable, target_variable, gold_variable, mask_variable, enco
 
     loss += criterion(decoder_output, gold_variable)
    
-    loss.backward()
+    if back_prop:
+        loss.backward()
 
-    encoder_optimizer.step()
-    decoder_optimizer.step()
+        encoder_optimizer.step()
+        decoder_optimizer.step()
     
     return loss.data[0] / target_length
 
@@ -307,7 +308,7 @@ def trainIters(trn_instances, dev_instances, encoder, decoder, print_every=100, 
                     dev_sentence_variable.append(Variable(dev_instances[idx][0]))
                     dev_sentence_variable.append(Variable(dev_instances[idx][1]))
                     dev_sentence_variable.append(Variable(dev_instances[idx][2])) 
-                dev_loss += train(dev_sentence_variable, dev_target_variable, dev_gold_variable, dev_mask_variable, encoder, decoder, encoder_optimizer, decoder_optimizer, criterion)
+                dev_loss += train(dev_sentence_variable, dev_target_variable, dev_gold_variable, dev_mask_variable, encoder, decoder, encoder_optimizer, decoder_optimizer, criterion, back_prop=False)
             print('dev loss %.10f' % (dev_loss))
             evaluate(dev_instances, encoder, decoder, str(int(iter/evaluate_every)))
 def evaluate(instances, encoder, decoder, part):
