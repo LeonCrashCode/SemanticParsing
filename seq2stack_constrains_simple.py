@@ -102,9 +102,9 @@ class AttnDecoderRNN(nn.Module):
                 self.lstm.dropout = self.dropout_p
                 embedded = self.tag_embeds(input[idx]).view(1, 1, -1)
                 embedded = self.dropout(embedded)
-                print stack
-                print [x.size() for x in stack_rep]
-                print [x[0].size() for x in stack_hidden]
+                #print stack
+                #print [x.size() for x in stack_rep]
+                #print [x[0].size() for x in stack_hidden]
                 ix = input[idx].data[0]
                 if ix != 4:
                     if ix == 0:
@@ -131,7 +131,7 @@ class AttnDecoderRNN(nn.Module):
                         stack_hidden.pop()
                         end -= 1
                     stack.append(-1)
-                    print tree_hidden[0].size()
+                    #print tree_hidden[0].size()
                     stack_rep.append(torch.sum(tree_hidden[0],0))
 
                 output, hidden = self.lstm(stack_rep[-1], stack_hidden[-1])
@@ -359,7 +359,7 @@ def trainIters(trn_instances, dev_instances, encoder, decoder, print_every=100, 
 
         loss = train(sentence_variable, target_variable, gold_variable, mask_variable, encoder, decoder, encoder_optimizer, decoder_optimizer, criterion)
         print_loss_total += loss
-        exit(1)
+        #exit(1)
         if iter % print_every == 0:
             print_loss_avg = print_loss_total / print_every
             print_loss_total = 0
@@ -436,10 +436,10 @@ dev_file = "dev.input"
 tst_file = "test.input"
 pretrain_file = "sskip.100.vectors"
 tag_info_file = "tag.info"
-trn_file = "train.input.part"
-dev_file = "dev.input.part"
-tst_file = "test.input.part"
-pretrain_file = "sskip.100.vectors.part"
+#trn_file = "train.input.part"
+#dev_file = "dev.input.part"
+#tst_file = "test.input.part"
+#pretrain_file = "sskip.100.vectors.part"
 UNK = "<UNK>"
 
 trn_data = readfile(trn_file)
