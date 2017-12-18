@@ -321,7 +321,7 @@ def trainIters(trn_instances, dev_instances, encoder, decoder, print_every=100, 
             print('dev loss %.10f' % (dev_loss/len(dev_instances)))
             evaluate(dev_instances, encoder, decoder, str(int(iter/evaluate_every)))
 def evaluate(instances, encoder, decoder, part):
-    out = open("dev_output/"+part,"w")
+    out = open("dev_output2/"+part,"w")
     for instance in instances:
         sentence_variable = []
         target_variable = Variable(torch.LongTensor([ x[1] for x in instance[3]]))
