@@ -181,7 +181,7 @@ class AttnDecoderRNN(nn.Module):
                     while stack[-1] != 0:
                         start -= 1
                         stack.pop()
-                    tree_output, tree_hidden, self.struture_representation(torch.cat(stack_rep[start:], 0), tree_hidden)
+                    tree_output, tree_hidden = self.struture_representation(torch.cat(stack_rep[start:], 0), tree_hidden)
                     start -= 1
                     stack.pop()
                     while end != start:
