@@ -8,6 +8,7 @@ from torch.autograd import Variable
 import torch.optim as optim
 import torch.nn.functional as F
 
+import sys
 import os
 
 from mask import StructuredMask
