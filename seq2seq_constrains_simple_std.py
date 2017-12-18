@@ -125,9 +125,9 @@ class AttnDecoderRNN(nn.Module):
                 attn_weights = F.softmax(torch.bmm(output, encoder_output.transpose(0,1).transpose(1,2)).view(output.size(0), -1))
                 attn_hiddens = torch.bmm(attn_weights.unsqueeze(0), encoder_output.transpose(0, 1))
 
-                lstm_input = self.feat(torch.cat((embedded, attn_hiddens),2))
+                lstm_input = self.feat(torch.cat((embedded, attn_hiddens),2).view(1,-1))
 
-                output, hidden = self.lstm(lstm_input, hidden)
+                output, hidden = self.lstm(lstm_input.unsqueeze(0), hidden)
 
                 selective_score = torch.bmm(torch.bmm(output, self.selective_matrix), encoder_output.transpose(0,1).transpose(1,2)).view(output.size(0), -1)
 
