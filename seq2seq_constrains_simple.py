@@ -36,7 +36,7 @@ class EncoderRNN(nn.Module):
         self.tanh = nn.Tanh()
         self.lstm = nn.LSTM(input_dim, hidden_dim, num_layers=self.n_layers, bidirectional=True)
 
-    def forward(self, sentence, hidden, train=True, back_prop=True):
+    def forward(self, sentence, hidden, train=True):
         word_embedded = self.word_embeds(sentence[0])
         pretrain_embedded = self.pretrain_embeds(sentence[1])
         lemma_embedded = self.lemma_embeds(sentence[2])
@@ -45,11 +45,6 @@ class EncoderRNN(nn.Module):
             word_embedded = self.dropout(word_embedded)
             lemma_embedded = self.dropout(lemma_embedded)
             self.lstm.dropout = self.dropout_p
-
-        if back_prop == False:
-            word_embedded.volatile = True
-            pretrain_embedded.volatile = True
-            lemma_embedded.volatile = True
 
         embeds = self.tanh(self.embeds2input(torch.cat((word_embedded, pretrain_embedded, lemma_embedded), 1))).view(len(sentence[0]),1,-1)
         output, hidden = self.lstm(embeds, hidden)
@@ -99,8 +94,7 @@ class AttnDecoderRNN(nn.Module):
             self.lstm.dropout = self.dropout_p
             embedded = self.tag_embeds(input).unsqueeze(1)
             embedded = self.dropout(embedded)
-            if back_prop == False:
-                embedded.volatile=True
+            
             output, hidden = self.lstm(embedded, hidden)
             
             selective_score = torch.bmm(torch.bmm(output.transpose(0,1), self.selective_matrix), encoder_output.transpose(0,1).transpose(1,2)).view(output.size(0), -1)

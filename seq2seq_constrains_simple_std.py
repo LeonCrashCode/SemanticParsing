@@ -37,7 +37,7 @@ class EncoderRNN(nn.Module):
         self.tanh = nn.Tanh()
         self.lstm = nn.LSTM(input_dim, hidden_dim, num_layers=self.n_layers, bidirectional=True)
 
-    def forward(self, sentence, hidden, train=True, back_prop=True):
+    def forward(self, sentence, hidden, train=True):
         word_embedded = self.word_embeds(sentence[0])
         pretrain_embedded = self.pretrain_embeds(sentence[1])
         lemma_embedded = self.lemma_embeds(sentence[2])
@@ -46,11 +46,6 @@ class EncoderRNN(nn.Module):
             word_embedded = self.dropout(word_embedded)
             lemma_embedded = self.dropout(lemma_embedded)
             self.lstm.dropout = self.dropout_p
-
-        if back_prop == False:
-            word_embedded.volatile = True
-            pretrain_embedded.volatile = True
-            lemma_embedded.volatile = True
 
         embeds = self.tanh(self.embeds2input(torch.cat((word_embedded, pretrain_embedded, lemma_embedded), 1))).view(len(sentence[0]),1,-1)
         output, hidden = self.lstm(embeds, hidden)
@@ -104,6 +99,7 @@ class AttnDecoderRNN(nn.Module):
             while idx < input.size(0):
                 embedded = self.tag_embeds(input[idx]).view(1,1,-1)
                 embedded = self.dropout(embedded)
+
                 attn_weights = F.softmax(torch.bmm(output, encoder_output.transpose(0,1).transpose(1,2)).view(output.size(0),-1))
                 attn_hiddens = torch.bmm(attn_weights.unsqueeze(0),encoder_output.transpose(0,1))
 
@@ -156,7 +152,7 @@ class AttnDecoderRNN(nn.Module):
                     idx = sentence_variable[2][type].view(-1).data.tolist()[0]
                     tokens.append([type, idx])
                     idx += tags_info.tag_size
-                    input = Variable(torch.LongTensor([idx]))
+                    input = Variable(torch.LongTensor([idx]), volatile=True)
                     if use_cuda:
                         input = input.cuda(device)
                     self.mask_pool.update(type, idx)
@@ -167,16 +163,6 @@ class AttnDecoderRNN(nn.Module):
                 if idx == tags_info.tag_to_ix[tags_info.EOS]:
                     break
             return Variable(torch.LongTensor(tokens), volatile=True)
-		
-    def initHidden(self):
-        if use_cuda:
-            result = (Variable(torch.zeros(1, 1, self.hidden_dim)).cuda(device),
-                Variable(torch.zeros(1, 1, self.hidden_dim)).cuda(device))
-            return result
-        else:
-            result = (Variable(torch.zeros(1, 1, self.hidden_dim)),
-                Variable(torch.zeros(1, 1, self.hidden_dim)))
-            return result
 
 def train(sentence_variable, target_variable, gold_variable, mask_variable, encoder, decoder, encoder_optimizer, decoder_optimizer, criterion, back_prop=True):
     encoder_hidden = encoder.initHidden()
@@ -194,9 +180,9 @@ def train(sentence_variable, target_variable, gold_variable, mask_variable, enco
     encoder_output, encoder_hidden = encoder(sentence_variable, encoder_hidden)
 
     decoder_input = Variable(torch.LongTensor([decoder.tags_info.tag_to_ix[SOS]]))
-    decoder_input = decoder_input.cuda(device) if use_cuda else decoder_input
     if back_prop == False:
         decoder_input.volatile = True
+    decoder_input = decoder_input.cuda(device) if use_cuda else decoder_input
     decoder_input = torch.cat((decoder_input, target_variable))
     
     #decoder_hidden = decoder.initHidden()
