@@ -130,6 +130,7 @@ class AttnDecoderRNN(nn.Module):
                         stack_rep.pop()
                         stack_hidden.pop()
                         end -= 1
+                    stack.append(-1)
                     stack_rep.append(torch.sum(tree_output.view(2,1,-1),0))
 
                 output, hidden = self.lstm(stack_rep[-1], stack_hidden[-1])
@@ -190,6 +191,7 @@ class AttnDecoderRNN(nn.Module):
                         stack_rep.pop()
                         stack_hidden.pop()
                         end -= 1
+                    stack.append(-1)
                     stack_rep.append(torch.sum(tree_output.view(2,1,-1),0))
 
                 output, hidden = self.lstm(stack_rep[-1], stack_hidden[-1])
