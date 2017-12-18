@@ -150,6 +150,8 @@ class AttnDecoderRNN(nn.Module):
                 outputs.append(F.log_softmax(total_score + (mask_variable[idx].unsqueeze(0) - 1) * 1e10))
 
                 idx += 1
+            assert len(stack) == 2
+            assert len(stack_rep) == 2
             return torch.cat(outputs,0)
         else:
             self.lstm.dropout = 0.0
