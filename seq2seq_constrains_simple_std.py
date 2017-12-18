@@ -37,7 +37,7 @@ class EncoderRNN(nn.Module):
         self.tanh = nn.Tanh()
         self.lstm = nn.LSTM(input_dim, hidden_dim, num_layers=self.n_layers, bidirectional=True)
 
-    def forward(self, sentence, hidden, train=True):
+    def forward(self, sentence, hidden, train=True, back_prop=True):
         word_embedded = self.word_embeds(sentence[0])
         pretrain_embedded = self.pretrain_embeds(sentence[1])
         lemma_embedded = self.lemma_embeds(sentence[2])
@@ -46,6 +46,11 @@ class EncoderRNN(nn.Module):
             word_embedded = self.dropout(word_embedded)
             lemma_embedded = self.dropout(lemma_embedded)
             self.lstm.dropout = self.dropout_p
+
+        if back_prop == False:
+            word_embedded.volatile = True
+            pretrain_embedded.volatile = True
+            lemma_embedded.volatile = True
 
         embeds = self.tanh(self.embeds2input(torch.cat((word_embedded, pretrain_embedded, lemma_embedded), 1))).view(len(sentence[0]),1,-1)
         output, hidden = self.lstm(embeds, hidden)
@@ -123,10 +128,11 @@ class AttnDecoderRNN(nn.Module):
             output = hidden[0]
             while True:
                 mask = self.mask_pool.get_step_mask()
-                mask_variable = Variable(torch.FloatTensor(mask), requires_grad = False).unsqueeze(0)
+                mask_variable = Variable(torch.FloatTensor(mask), volatile=True).unsqueeze(0)
                 if use_cuda:
                     mask_variable = mask_variable.cuda(device)
                 embedded = self.tag_embeds(input).view(1, 1, -1)
+                embedded.volatile = True
                 attn_weights = F.softmax(torch.bmm(output, encoder_output.transpose(0,1).transpose(1,2)).view(output.size(0), -1))
                 attn_hiddens = torch.bmm(attn_weights.unsqueeze(0), encoder_output.transpose(0, 1))
 
@@ -160,7 +166,7 @@ class AttnDecoderRNN(nn.Module):
 
                 if idx == tags_info.tag_to_ix[tags_info.EOS]:
                     break
-            return Variable(torch.LongTensor(tokens))
+            return Variable(torch.LongTensor(tokens), volatile=True)
 		
     def initHidden(self):
         if use_cuda:
@@ -174,6 +180,8 @@ class AttnDecoderRNN(nn.Module):
 
 def train(sentence_variable, target_variable, gold_variable, mask_variable, encoder, decoder, encoder_optimizer, decoder_optimizer, criterion, back_prop=True):
     encoder_hidden = encoder.initHidden()
+    if back_prop == False:
+        encoder_hidden.volatile = True
 
     encoder_optimizer.zero_grad()
     decoder_optimizer.zero_grad()
@@ -187,6 +195,8 @@ def train(sentence_variable, target_variable, gold_variable, mask_variable, enco
 
     decoder_input = Variable(torch.LongTensor([decoder.tags_info.tag_to_ix[SOS]]))
     decoder_input = decoder_input.cuda(device) if use_cuda else decoder_input
+    if back_prop == False:
+        decoder_input.volatile = True
     decoder_input = torch.cat((decoder_input, target_variable))
     
     #decoder_hidden = decoder.initHidden()
@@ -210,10 +220,11 @@ def train(sentence_variable, target_variable, gold_variable, mask_variable, enco
 
 def decode(sentence_variable, target_variable, encoder, decoder):
     encoder_hidden = encoder.initHidden()
-    
+    encoder_hidden.volatile = True
+
     encoder_output, encoder_hidden = encoder(sentence_variable, encoder_hidden)
     
-    decoder_input = Variable(torch.LongTensor([decoder.tags_info.tag_to_ix[SOS]]))
+    decoder_input = Variable(torch.LongTensor([decoder.tags_info.tag_to_ix[SOS]]), volatile = True)
     decoder_input = decoder_input.cuda(device) if use_cuda else decoder_input
 
     decoder_hidden = (torch.cat((encoder_hidden[0][-2], encoder_hidden[0][-1]), 1).unsqueeze(0),torch.cat((encoder_hidden[1][-2], encoder_hidden[1][-1]), 1).unsqueeze(0))
@@ -298,8 +309,8 @@ def trainIters(trn_instances, dev_instances, encoder, decoder, print_every=100, 
             dev_loss = 0.0
             while dev_idx < len(dev_instances):
                 dev_sentence_variable = []
-                dev_target_variable = Variable(torch.LongTensor([ x[1] for x in dev_instances[dev_idx][3]]))
-                dev_mask_variable = Variable(torch.FloatTensor(dev_masks[dev_idx]), requires_grad = False)
+                dev_target_variable = Variable(torch.LongTensor([ x[1] for x in dev_instances[dev_idx][3]]), volatile = True)
+                dev_mask_variable = Variable(torch.FloatTensor(dev_masks[dev_idx]), requires_grad = False, volatile = True)
 
                 dev_gold_list = []
                 for x in dev_instances[dev_idx][3]:
@@ -307,18 +318,18 @@ def trainIters(trn_instances, dev_instances, encoder, decoder, print_every=100, 
                         dev_gold_list.append(x[0] + decoder.tags_info.tag_size)
                     else:
                         dev_gold_list.append(x[1])
-                dev_gold_variable = Variable(torch.LongTensor(dev_gold_list))
+                dev_gold_variable = Variable(torch.LongTensor(dev_gold_list), volatile = True)
 
                 if use_cuda:
-                    dev_sentence_variable.append(Variable(dev_instances[dev_idx][0]).cuda(device))
-                    dev_sentence_variable.append(Variable(dev_instances[dev_idx][1]).cuda(device))
-                    dev_sentence_variable.append(Variable(dev_instances[dev_idx][2]).cuda(device))
+                    dev_sentence_variable.append(Variable(dev_instances[dev_idx][0], volatile = True).cuda(device))
+                    dev_sentence_variable.append(Variable(dev_instances[dev_idx][1], volatile = True).cuda(device))
+                    dev_sentence_variable.append(Variable(dev_instances[dev_idx][2], volatile = True).cuda(device))
                     dev_target_variable = dev_target_variable.cuda(device)
                     dev_mask_variable = dev_mask_variable.cuda(device)
                 else:
-                    dev_sentence_variable.append(Variable(dev_instances[dev_idx][0]))
-                    dev_sentence_variable.append(Variable(dev_instances[dev_idx][1]))
-                    dev_sentence_variable.append(Variable(dev_instances[dev_idx][2])) 
+                    dev_sentence_variable.append(Variable(dev_instances[dev_idx][0], volatile = True))
+                    dev_sentence_variable.append(Variable(dev_instances[dev_idx][1], volatile = True))
+                    dev_sentence_variable.append(Variable(dev_instances[dev_idx][2], volatile = True)) 
                 dev_loss += train(dev_sentence_variable, dev_target_variable, dev_gold_variable, dev_mask_variable, encoder, decoder, encoder_optimizer, decoder_optimizer, criterion, back_prop=False)
                 dev_idx += 1
             print('dev loss %.10f' % (dev_loss/len(dev_instances)))
@@ -327,16 +338,16 @@ def evaluate(instances, encoder, decoder, part):
     out = open("dev_output2/"+part,"w")
     for instance in instances:
         sentence_variable = []
-        target_variable = Variable(torch.LongTensor([ x[1] for x in instance[3]]))
+        target_variable = Variable(torch.LongTensor([ x[1] for x in instance[3]]), volatile = True)
         if use_cuda:
-            sentence_variable.append(Variable(instance[0]).cuda(device))
-            sentence_variable.append(Variable(instance[1]).cuda(device))
-            sentence_variable.append(Variable(instance[2]).cuda(device))
+            sentence_variable.append(Variable(instance[0], volatile = True).cuda(device))
+            sentence_variable.append(Variable(instance[1], volatile = True).cuda(device))
+            sentence_variable.append(Variable(instance[2], volatile = True).cuda(device))
             target_variable = target_variable.cuda(device)
         else:
-            sentence_variable.append(Variable(instance[0]))
-            sentence_variable.append(Variable(instance[1]))
-            sentence_variable.append(Variable(instance[2]))
+            sentence_variable.append(Variable(instance[0], volatile = True))
+            sentence_variable.append(Variable(instance[1], volatile = True))
+            sentence_variable.append(Variable(instance[2], volatile = True))
         tokens = decode(sentence_variable, target_variable, encoder, decoder)
 
         output = []
