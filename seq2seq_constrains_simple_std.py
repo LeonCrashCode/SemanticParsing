@@ -75,10 +75,8 @@ class AttnDecoderRNN(nn.Module):
         self.dropout = nn.Dropout(self.dropout_p)
         self.tag_embeds = nn.Embedding(self.tags_info.all_tag_size, self.tag_dim)
 
-        self.lstm = nn.LSTM(self.tag_dim, self.hidden_dim, num_layers= self.n_layers)
-
         self.feat = nn.Linear(self.hidden_dim + self.tag_dim, self.feat_dim)
-        self.feat_tanh = nn.Tanh()
+        self.lstm = nn.LSTM(self.feat_dim, self.hidden_dim, num_layers= self.n_layers)
         self.out = nn.Linear(self.hidden_dim, self.tag_size)
 
         self.selective_matrix = Variable(torch.randn(1, self.hidden_dim, self.hidden_dim))
@@ -100,9 +98,9 @@ class AttnDecoderRNN(nn.Module):
                 attn_weights = F.softmax(torch.bmm(output, encoder_output.transpose(0,1).transpose(1,2)).view(output.size(0),-1))
                 attn_hiddens = torch.bmm(attn_weights.unsqueeze(0),encoder_output.transpose(0,1))
 
-                lstm_input = self.feat(torch.cat((embedded, attn_hiddens),2))
+                lstm_input = self.feat(torch.cat((embedded, attn_hiddens),2).view(1,-1))
 
-                output, hidden = self.lstm(lstm_input, hidden)
+                output, hidden = self.lstm(lstm_input.unsqueeze(0), hidden)
             
                 selective_score = torch.bmm(torch.bmm(output, self.selective_matrix), encoder_output.transpose(0,1).transpose(1,2)).view(output.size(0), -1)
 
@@ -361,7 +359,7 @@ dev_file = "dev.input"
 tst_file = "test.input"
 pretrain_file = "sskip.100.vectors"
 tag_info_file = "tag.info"
-#trn_file = "train.input.part2"
+#trn_file = "train.input.part"
 #dev_file = "dev.input.part"
 #tst_file = "test.input.part"
 #pretrain_file = "sskip.100.vectors.part"
