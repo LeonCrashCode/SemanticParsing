@@ -103,8 +103,8 @@ class AttnDecoderRNN(nn.Module):
                 embedded = self.tag_embeds(input[idx]).view(1, 1, -1)
                 embedded = self.dropout(embedded)
                 print stack
-                print [x.size() in stack_rep]
-                print [x[0].size() in stack_hidden]
+                print [x.size() for x in stack_rep]
+                print [x[0].size() for x in stack_hidden]
                 ix = input[idx].data[0]
                 if ix != 4:
                     if ix == 0:
