@@ -287,11 +287,11 @@ def trainIters(trn_instances, dev_instances, encoder, decoder, print_every=100, 
             dev_loss = 0.0
             while dev_idx < len(dev_instances):
                 dev_sentence_variable = []
-                dev_target_variable = Variable(torch.LongTensor([ x[1] for x in dev_instances[idx][3]]))
-                dev_mask_variable = Variable(torch.FloatTensor(dev_masks[idx]), requires_grad = False)
+                dev_target_variable = Variable(torch.LongTensor([ x[1] for x in dev_instances[dev_idx][3]]))
+                dev_mask_variable = Variable(torch.FloatTensor(dev_masks[dev_idx]), requires_grad = False)
 
                 dev_gold_list = []
-                for x in dev_instances[idx][3]:
+                for x in dev_instances[dev_idx][3]:
                     if x[0] != -2:
                         dev_gold_list.append(x[0] + decoder.tags_info.tag_size)
                     else:
@@ -299,16 +299,17 @@ def trainIters(trn_instances, dev_instances, encoder, decoder, print_every=100, 
                 dev_gold_variable = Variable(torch.LongTensor(dev_gold_list))
 
                 if use_cuda:
-                    dev_sentence_variable.append(Variable(dev_instances[idx][0]).cuda())
-                    dev_sentence_variable.append(Variable(dev_instances[idx][1]).cuda())
-                    dev_sentence_variable.append(Variable(dev_instances[idx][2]).cuda())
+                    dev_sentence_variable.append(Variable(dev_instances[dev_idx][0]).cuda())
+                    dev_sentence_variable.append(Variable(dev_instances[dev_idx][1]).cuda())
+                    dev_sentence_variable.append(Variable(dev_instances[dev_idx][2]).cuda())
                     dev_target_variable = dev_target_variable.cuda()
                     dev_mask_variable = dev_mask_variable.cuda()
                 else:
-                    dev_sentence_variable.append(Variable(dev_instances[idx][0]))
-                    dev_sentence_variable.append(Variable(dev_instances[idx][1]))
-                    dev_sentence_variable.append(Variable(dev_instances[idx][2])) 
+                    dev_sentence_variable.append(Variable(dev_instances[dev_idx][0]))
+                    dev_sentence_variable.append(Variable(dev_instances[dev_idx][1]))
+                    dev_sentence_variable.append(Variable(dev_instances[dev_idx][2])) 
                 dev_loss += train(dev_sentence_variable, dev_target_variable, dev_gold_variable, dev_mask_variable, encoder, decoder, encoder_optimizer, decoder_optimizer, criterion, back_prop=False)
+                dev_idx += 1
             print('dev loss %.10f' % (dev_loss))
             evaluate(dev_instances, encoder, decoder, str(int(iter/evaluate_every)))
 def evaluate(instances, encoder, decoder, part):
@@ -327,14 +328,14 @@ def evaluate(instances, encoder, decoder, part):
             sentence_variable.append(Variable(instance[2]))
         tokens = decode(sentence_variable, target_variable, encoder, decoder)
 
-	output = []
+        output = []
         for type, tok in tokens:
             if type >= 0:
                 output.append(decoder.tags_info.ix_to_lemma[tok])
             else:
                 output.append(decoder.tags_info.ix_to_tag[tok])
         out.write(" ".join(output)+"\n")
-	out.flush()
+        out.flush()
     out.close()
 #####################################################################################
 #####################################################################################
