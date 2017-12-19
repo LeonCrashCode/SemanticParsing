@@ -169,7 +169,7 @@ class AttnDecoderRNN(nn.Module):
                 embedded = self.tag_embeds(input).view(1, 1, -1)
                 embedded.volatile=True
 
-                ix = input.data[0]
+                ix = input[0].data[0]
                 if ix != 4:
                     if ix == 0:
                         stack.append(999)
@@ -195,7 +195,7 @@ class AttnDecoderRNN(nn.Module):
                         stack_hidden.pop()
                         end -= 1
                     stack.append(-1)
-                    stack_rep.append(torch.sum(tree_output.view(2,1,-1),0))
+                    stack_rep.append(torch.sum(tree_hidden[0],0))
 
                 output, hidden = self.lstm(stack_rep[-1], stack_hidden[-1])
                 stack_hidden.append(hidden)
@@ -290,7 +290,7 @@ def decode(sentence_variable, target_variable, encoder, decoder):
 
     decoder_hidden = (torch.cat((encoder_hidden[0][-2], encoder_hidden[0][-1]), 1).unsqueeze(0),torch.cat((encoder_hidden[1][-2], encoder_hidden[1][-1]), 1).unsqueeze(0))
 
-    tokens = decoder(sentence_variable, decoder_input, decoder_hidden, encoder_output, train=False, back_prop=False)
+    tokens = decoder(sentence_variable, decoder_input, decoder_hidden, encoder_output, train=False)
 
     return tokens.view(-1,2).data.tolist()
 
@@ -510,5 +510,5 @@ if use_cuda:
     encoder = encoder.cuda(device)
     attn_decoder = attn_decoder.cuda(device)
 
-trainIters(trn_instances, dev_instances, encoder, attn_decoder, print_every=1000, evaluate_every=50000, learning_rate=0.001)
+trainIters(trn_instances, dev_instances, encoder, attn_decoder, print_every=1000, evaluate_every=1, learning_rate=0.001)
 
