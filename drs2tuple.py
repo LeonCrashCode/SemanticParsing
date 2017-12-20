@@ -8,14 +8,14 @@ pp_r = re.compile("^P([0-9]+)\($")
 xp = re.compile("^X([0-9]+)$")
 ep = re.compile("^E([0-9]+)$")
 sp = re.compile("^S([0-9]+)$")
-tp = re.compile("^T([0-9]+)$")
+pp = re.compile("^P([0-9]+)$")
 kp = re.compile("^K([0-9]+)$")
 
 
 special = ["NOT(", "POS(", "NEC(", "OR(", "IMP(", "DUPLEX("]
 
 def is_variables(tok):
-	if xp.match(tok) or ep.match(tok) or sp.match(tok) or tp.match(tok) or kp.match(tok):
+	if xp.match(tok) or ep.match(tok) or sp.match(tok) or pp.match(tok) or kp.match(tok):
 		return True
 	return False
 
