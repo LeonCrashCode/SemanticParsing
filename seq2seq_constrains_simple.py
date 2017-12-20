@@ -99,7 +99,7 @@ class AttnDecoderRNN(nn.Module):
             
             selective_score = torch.bmm(torch.bmm(output.transpose(0,1), self.selective_matrix), encoder_output.transpose(0,1).transpose(1,2)).view(output.size(0), -1)
 
-            attn_weights = F.softmax(torch.bmm(output.transpose(0,1), encoder_output.transpose(0,1).transpose(1,2)).view(output.size(0),-1))
+            attn_weights = F.softmax(torch.bmm(output.transpose(0,1), encoder_output.transpose(0,1).transpose(1,2)).view(output.size(0),-1), 1)
             attn_hiddens = torch.bmm(attn_weights.unsqueeze(0),encoder_output.transpose(0,1))
             feat_hiddens = self.feat_tanh(self.feat(torch.cat((attn_hiddens, embedded.transpose(0,1)), 2).view(output.size(0),-1)))
 
@@ -107,7 +107,7 @@ class AttnDecoderRNN(nn.Module):
 
             total_score = torch.cat((global_score, selective_score), 1)
 
-            output = F.log_softmax(total_score + (mask_variable - 1) * 1e10)
+            output = F.log_softmax(total_score + (mask_variable - 1) * 1e10, 1)
 
             return output
         else:
@@ -220,7 +220,7 @@ def decode(sentence_variable, target_variable, encoder, decoder):
 # of examples, time so far, estimated time) and average loss.
 #
 
-def trainIters(trn_instances, dev_instances, encoder, decoder, print_every=100, evaluate_every=1000, learning_rate=0.001):
+def trainIters(trn_instances, dev_instances, tst_instances, encoder, decoder, print_every=100, evaluate_every=1000, learning_rate=0.001):
     plot_losses = []
     print_loss_total = 0  # Reset every print_every
     plot_loss_total = 0  # Reset every plot_every
@@ -308,9 +308,11 @@ def trainIters(trn_instances, dev_instances, encoder, decoder, print_every=100, 
                 dev_loss += train(dev_sentence_variable, dev_target_variable, dev_gold_variable, dev_mask_variable, encoder, decoder, encoder_optimizer, decoder_optimizer, criterion, back_prop=False)
                 dev_idx += 1
             print('dev loss %.10f' % (dev_loss/len(dev_instances)))
-            evaluate(dev_instances, encoder, decoder, str(int(iter/evaluate_every)))
-def evaluate(instances, encoder, decoder, part):
-    out = open("dev_output/"+part,"w")
+            evaluate(dev_instances, encoder, decoder, "dev_output/"+str(int(iter/evaluate_every)))
+            evaluate(tst_instances, encoder, decoder, "test_output/"+str(int(iter/evaluate_every)))
+
+def evaluate(instances, encoder, decoder, path):
+    out = open(path,"w")
     for instance in instances:
         sentence_variable = []
         target_variable = Variable(torch.LongTensor([ x[1] for x in instance[3]]), volatile=True)
@@ -402,8 +404,8 @@ ENCODER_HIDDEN_DIM = 256
 DECODER_INPUT_DIM = 128
 ATTENTION_HIDDEN_DIM = 256
 
-encoder = EncoderRNN(len(word_to_ix), WORD_EMBEDDING_DIM, len(pretrain_to_ix), PRETRAIN_EMBEDDING_DIM, torch.FloatTensor(pretrain_embeddings), len(lemma_to_ix), LEMMA_EMBEDDING_DIM, INPUT_DIM, ENCODER_HIDDEN_DIM, n_layers=2, dropout_p=0.1)
-attn_decoder = AttnDecoderRNN(mask_pool, tags_info, TAG_DIM, DECODER_INPUT_DIM, ENCODER_HIDDEN_DIM, ATTENTION_HIDDEN_DIM, n_layers=1, dropout_p=0.1)
+encoder = EncoderRNN(len(word_to_ix), WORD_EMBEDDING_DIM, len(pretrain_to_ix), PRETRAIN_EMBEDDING_DIM, torch.FloatTensor(pretrain_embeddings), len(lemma_to_ix), LEMMA_EMBEDDING_DIM, INPUT_DIM, ENCODER_HIDDEN_DIM, n_layers=2, dropout_p=0.2)
+attn_decoder = AttnDecoderRNN(mask_pool, tags_info, TAG_DIM, DECODER_INPUT_DIM, ENCODER_HIDDEN_DIM, ATTENTION_HIDDEN_DIM, n_layers=1, dropout_p=0.2)
 
 
 ###########################################################
@@ -424,5 +426,5 @@ if use_cuda:
     encoder = encoder.cuda(device)
     attn_decoder = attn_decoder.cuda(device)
 
-trainIters(trn_instances, dev_instances, encoder, attn_decoder, print_every=1000, evaluate_every=50000, learning_rate=0.001)
+trainIters(trn_instances, dev_instances, tst_instances, encoder, attn_decoder, print_every=1000, evaluate_every=50000, learning_rate=0.001)
 
