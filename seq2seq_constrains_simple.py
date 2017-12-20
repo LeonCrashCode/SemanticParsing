@@ -120,7 +120,6 @@ class AttnDecoderRNN(nn.Module):
                 if use_cuda:
                     mask_variable = mask_variable.cuda(device)
                 embedded = self.tag_embeds(input).view(1, 1, -1)
-                embedded.volatile=True
                 output, hidden = self.lstm(embedded, hidden)
 
                 selective_score = torch.bmm(torch.bmm(output, self.selective_matrix), encoder_output.transpose(0,1).transpose(1,2)).view(output.size(0), -1)
@@ -231,7 +230,6 @@ def trainIters(trn_instances, dev_instances, tst_instances, encoder, decoder, pr
     criterion = nn.NLLLoss()
 
     masks = []
-
     for instance in trn_instances:
         decoder.mask_pool.reset(len(instance[0]))
         masks.append(decoder.mask_pool.get_all_mask(instance[3]))
@@ -240,12 +238,11 @@ def trainIters(trn_instances, dev_instances, tst_instances, encoder, decoder, pr
     for instance in dev_instances:
         decoder.mask_pool.reset(len(instance[0]))
         dev_masks.append(decoder.mask_pool.get_all_mask(instance[3]))
-
     idx = -1
     iter = 0
     while True:
-
-        torch.cuda.empty_cache()
+        if use_cuda:
+            torch.cuda.empty_cache()
         idx += 1
         iter += 1
         if idx == len(trn_instances):
@@ -285,7 +282,8 @@ def trainIters(trn_instances, dev_instances, tst_instances, encoder, decoder, pr
             dev_idx = 0
             dev_loss = 0.0
             while dev_idx < len(dev_instances):
-                torch.cuda.empty_cache()
+                if use_cuda:
+                    torch.cuda.empty_cache()
                 dev_sentence_variable = []
                 dev_target_variable = Variable(torch.LongTensor([ x[1] for x in dev_instances[dev_idx][3]]), volatile=True)
                 dev_mask_variable = Variable(torch.FloatTensor(dev_masks[dev_idx]), requires_grad = False, volatile=True)
@@ -317,7 +315,8 @@ def trainIters(trn_instances, dev_instances, tst_instances, encoder, decoder, pr
 def evaluate(instances, encoder, decoder, path):
     out = open(path,"w")
     for instance in instances:
-        torch.cuda.empty_cache()
+        if use_cuda:
+            torch.cuda.empty_cache()
         sentence_variable = []
         target_variable = Variable(torch.LongTensor([ x[1] for x in instance[3]]), volatile=True)
         if use_cuda:
