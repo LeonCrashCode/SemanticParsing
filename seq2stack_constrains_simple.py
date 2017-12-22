@@ -333,14 +333,14 @@ def trainIters(trn_instances, dev_instances, tst_instances, encoder, decoder, pr
     for instance in trn_instances:
         sentence_variable = []
         if use_cuda:
-            sentence_variable.apppend(Variable(instance[0]).cuda(device))
-            sentence_variable.apppend(Variable(instance[1]).cuda(device))
-            sentence_variable.apppend(Variable(instance[2]).cuda(device))
+            sentence_variable.append(Variable(instance[0]).cuda(device))
+            sentence_variable.append(Variable(instance[1]).cuda(device))
+            sentence_variable.append(Variable(instance[2]).cuda(device))
             target_variables.append(Variable(torch.LongTensor([ x[1] for x in instance[3]])).cuda(device))
         else:
-            sentence_variable.apppend(Variable(instance[0]))
-            sentence_variable.apppend(Variable(instance[1]))
-            sentence_variable.apppend(Variable(instance[2]))
+            sentence_variable.append(Variable(instance[0]))
+            sentence_variable.append(Variable(instance[1]))
+            sentence_variable.append(Variable(instance[2]))
             target_variables.append(Variable(torch.LongTensor([ x[1] for x in instance[3]])))
         sentence_variables.append(sentence_variable)
 
@@ -372,14 +372,14 @@ def trainIters(trn_instances, dev_instances, tst_instances, encoder, decoder, pr
     for instance in dev_instances:
         dev_sentence_variable = []
         if use_cuda:
-            dev_sentence_variable.apppend(Variable(instance[0], volatile=True).cuda(device))
-            dev_sentence_variable.apppend(Variable(instance[1], volatile=True).cuda(device))
-            dev_sentence_variable.apppend(Variable(instance[2], volatile=True).cuda(device))
+            dev_sentence_variable.append(Variable(instance[0], volatile=True).cuda(device))
+            dev_sentence_variable.append(Variable(instance[1], volatile=True).cuda(device))
+            dev_sentence_variable.append(Variable(instance[2], volatile=True).cuda(device))
             dev_target_variables.append(Variable(torch.LongTensor([ x[1] for x in instance[3]]), volatile=True).cuda(device))
         else:
-            dev_sentence_variable.apppend(Variable(instance[0], volatile=True))
-            dev_sentence_variable.apppend(Variable(instance[1], volatile=True))
-            dev_sentence_variable.apppend(Variable(instance[2], volatile=True))
+            dev_sentence_variable.append(Variable(instance[0], volatile=True))
+            dev_sentence_variable.append(Variable(instance[1], volatile=True))
+            dev_sentence_variable.append(Variable(instance[2], volatile=True))
             dev_target_variables.append(Variable(torch.LongTensor([ x[1] for x in instance[3]]), volatile=True))
         dev_sentence_variables.append(dev_sentence_variable)
 
@@ -411,14 +411,14 @@ def trainIters(trn_instances, dev_instances, tst_instances, encoder, decoder, pr
     for instance in tst_instances:
         tst_sentence_variable = []
         if use_cuda:
-            tst_sentence_variable.apppend(Variable(instance[0], volatile=True).cuda(device))
-            tst_sentence_variable.apppend(Variable(instance[1], volatile=True).cuda(device))
-            tst_sentence_variable.apppend(Variable(instance[2], volatile=True).cuda(device))
+            tst_sentence_variable.append(Variable(instance[0], volatile=True).cuda(device))
+            tst_sentence_variable.append(Variable(instance[1], volatile=True).cuda(device))
+            tst_sentence_variable.append(Variable(instance[2], volatile=True).cuda(device))
             tst_target_variables.append(Variable(torch.LongTensor([ x[1] for x in instance[3]]), volatile=True).cuda(device))
         else:
-            tst_sentence_variable.apppend(Variable(instance[0], volatile=True))
-            tst_sentence_variable.apppend(Variable(instance[1], volatile=True))
-            tst_sentence_variable.apppend(Variable(instance[2], volatile=True))
+            tst_sentence_variable.append(Variable(instance[0], volatile=True))
+            tst_sentence_variable.append(Variable(instance[1], volatile=True))
+            tst_sentence_variable.append(Variable(instance[2], volatile=True))
             dev_target_variables.append(Variable(torch.LongTensor([ x[1] for x in instance[3]]), volatile=True))
         tst_sentence_variables.append(tst_sentence_variable)
 
