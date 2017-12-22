@@ -18,6 +18,9 @@ if use_cuda:
     os.environ["CUDA_VISIBLE_DEVICES"] = sys.argv[1]
     device = int(sys.argv[1])
 
+dev_out_dir = sys.argv[2]+"_dev/"
+tst_out_dir = sys.argv[2]+"_tst/"
+
 class EncoderRNN(nn.Module):
     def __init__(self, word_size, word_dim, pretrain_size, pretrain_dim, pretrain_embeddings, lemma_size, lemma_dim, input_dim, hidden_dim, n_layers=1, dropout_p=0.0):
         super(EncoderRNN, self).__init__()
@@ -309,8 +312,8 @@ def trainIters(trn_instances, dev_instances, tst_instances, encoder, decoder, pr
                 dev_loss += train(dev_sentence_variable, dev_target_variable, dev_gold_variable, dev_mask_variable, encoder, decoder, encoder_optimizer, decoder_optimizer, criterion, back_prop=False)
                 dev_idx += 1
             print('dev loss %.10f' % (dev_loss/len(dev_instances)))
-            evaluate(dev_instances, encoder, decoder, "dev_output/"+str(int(iter/evaluate_every)))
-            evaluate(tst_instances, encoder, decoder, "test_output/"+str(int(iter/evaluate_every)))
+            evaluate(dev_instances, encoder, decoder, dev_out_dir+str(int(iter/evaluate_every))+".drs")
+            evaluate(tst_instances, encoder, decoder, tst_out_dir+str(int(iter/evaluate_every))+".drs")
 
 def evaluate(instances, encoder, decoder, path):
     out = open(path,"w")
@@ -407,8 +410,8 @@ ENCODER_HIDDEN_DIM = 256
 DECODER_INPUT_DIM = 128
 ATTENTION_HIDDEN_DIM = 256
 
-encoder = EncoderRNN(len(word_to_ix), WORD_EMBEDDING_DIM, len(pretrain_to_ix), PRETRAIN_EMBEDDING_DIM, torch.FloatTensor(pretrain_embeddings), len(lemma_to_ix), LEMMA_EMBEDDING_DIM, INPUT_DIM, ENCODER_HIDDEN_DIM, n_layers=2, dropout_p=0.2)
-attn_decoder = AttnDecoderRNN(mask_pool, tags_info, TAG_DIM, DECODER_INPUT_DIM, ENCODER_HIDDEN_DIM, ATTENTION_HIDDEN_DIM, n_layers=1, dropout_p=0.2)
+encoder = EncoderRNN(len(word_to_ix), WORD_EMBEDDING_DIM, len(pretrain_to_ix), PRETRAIN_EMBEDDING_DIM, torch.FloatTensor(pretrain_embeddings), len(lemma_to_ix), LEMMA_EMBEDDING_DIM, INPUT_DIM, ENCODER_HIDDEN_DIM, n_layers=2, dropout_p=0.1)
+attn_decoder = AttnDecoderRNN(mask_pool, tags_info, TAG_DIM, DECODER_INPUT_DIM, ENCODER_HIDDEN_DIM, ATTENTION_HIDDEN_DIM, n_layers=1, dropout_p=0.1)
 
 
 ###########################################################

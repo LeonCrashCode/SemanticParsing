@@ -31,11 +31,8 @@ def process(tokens):
 	i = 0
 	stack = []
 	tuples = []
-	print tokens
 	while i < len(tokens):
 		tok = tokens[i]
-		print stack
-		print tuples
 		if tok == "<EOS>":
 			i += 1
 			pass
@@ -49,16 +46,16 @@ def process(tokens):
 			i+=1
 		elif kp_r.match(tok) or pp_r.match(tok):
 			stack.append(tok[:-1])
-			if tok[-1] not in variables:
-				tuples.append([stack[-1], "REF", tok[:-1]])
+			if tok[:-1] not in variables:
+				tuples.append([get_b(stack), "REF", tok[:-1].lower()])
 				variables.add(tok[:-1])
 			i += 1
 		elif tok == "TIMEX(" or tok == "CARD(":
 			if tokens[i+1] not in variables:
-				tuples.append([get_b(stack), "REF", tokens[i+1]])
+				tuples.append([get_b(stack), "REF", tokens[i+1].lower()])
 				variables.add(tokens[i+1])
 			tuples.append([get_b(stack), "TIMEX", "c"+str(current_c)])
-			tuples.append(["c"+str(current_c), "ARG1", tokens[i+1]])
+			tuples.append(["c"+str(current_c), "ARG1", tokens[i+1].lower()])
 			if tokens[i+2] != ")":
 				tuples.append(["c"+str(current_c), "ARG2", '"'+tokens[i+2]+'"'])
 			current_c += 1
@@ -76,42 +73,47 @@ def process(tokens):
 			if stack[-1][0] == "c":
 				assert len(tmp) <= 2
 				crel = special[int(stack[-1].split("-")[2])]
-				cnum = " ".join(stack[-1].split("-")[:2])
-				tuples.append([get_b(stack), crel, cnum])
-				tuples.append([cnum, "ARG1", tmp[0][1:]])
+				cnum = "".join(stack[-1].split("-")[:2])
+				tuples.append([get_b(stack), crel[:-1], cnum.lower()])
+				tuples.append([cnum, "ARG1", tmp[0][1:].lower()])
 				if len(tmp) == 2:
-					tuples.append([cnum, "ARG1", tmp[0][1:]])
+					tuples.append([cnum, "ARG2", tmp[1][1:].lower()])
 				stack.pop()
-			elif stack[-1][0] in ["k","p"]:
+			elif stack[-1][0] in ["K","P"]:
 				assert len(tmp) == 1
-				if stack[-1][0] == "k":
-					tuples.append([get_b(stack), "CONSTITUENT", str(current_c)])
+				if stack[-1][0] == "K":
+					tuples.append([get_b(stack), "CONSTITUENT", "c"+str(current_c)])
 				else:
-					tuples.append([get_b(stack), "PROP", str(current_c)])
+					tuples.append([get_b(stack), "PROP", "c"+str(current_c)])
 				
-				tuples.append([str(current_c), "ARG1", stack[-1]])
-				tuples.append([str(current_c), "ARG2", tmp[0][1:]])
+				tuples.append(["c"+str(current_c), "ARG1", stack[-1].lower()])
+				tuples.append(["c"+str(current_c), "ARG2", tmp[0][1:].lower()])
 				current_c += 1
+				stack.pop()
 			else:
 				stack[-1] = "-"+stack[-1]
 			i += 1
 		else:
+			if tok == "EQ(":
+				tok = "EQU("
 			if tokens[i+1] not in variables:
-				tuples.append([get_b(stack), "REF", tokens[i+1]])
+				tuples.append([get_b(stack), "REF", tokens[i+1].lower()])
 				variables.add(tokens[i+1])
-			tuples.append([get_b(stack), tok, "c"+str(current_c)])
-			tuples.append(["c"+str(current_c), "ARG1", tokens[i+1]])
+			tuples.append([get_b(stack), tok[:-1], "c"+str(current_c)])
+			tuples.append(["c"+str(current_c), "ARG1", tokens[i+1].lower()])
 			if tokens[i+2] != ")":
 				if tokens[i+2] not in variables:
-					tuples.append([get_b(stack), "REF", tokens[i+2]])
+					tuples.append([get_b(stack), "REF", tokens[i+2].lower()])
 					variables.add(tokens[i+2])
-				tuples.append(["c"+str(current_c), "ARG2", tokens[i+2]])
+				tuples.append(["c"+str(current_c), "ARG2", tokens[i+2].lower()])
 			current_c += 1
 			if tokens[i+2] != ")":
 				i += 4
 			else:
 				i += 3
-
+	for item in tuples:
+		print " ".join(item)
+	print
 for line in open(sys.argv[1]):
 	line = line.strip()
 	if line[:4] == "DRS(":
