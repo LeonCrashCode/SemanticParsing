@@ -260,14 +260,16 @@ def trainIters(trn_instances, dev_instances, tst_instances, encoder, decoder, pr
                 gold_list.append(x[0] + decoder.tags_info.tag_size)
             else:
                 gold_list.append(x[1])
-        gold_variable = Variable(torch.LongTensor(gold_list))
 
+        gold_variable = Variable(torch.LongTensor(gold_list))
         if use_cuda:
             sentence_variable.append(Variable(trn_instances[idx][0]).cuda(device))
             sentence_variable.append(Variable(trn_instances[idx][1]).cuda(device))
             sentence_variable.append(Variable(trn_instances[idx][2]).cuda(device))
             target_variable = target_variable.cuda(device)
             mask_variable = mask_variable.cuda(device)
+            gold_variable = gold_variable.cuda(device)
+            
         else:
             sentence_variable.append(Variable(trn_instances[idx][0]))
             sentence_variable.append(Variable(trn_instances[idx][1]))
