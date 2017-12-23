@@ -133,9 +133,7 @@ class AttnDecoderRNN(nn.Module):
                         stack_hidden.pop()
                         end -= 1
                     stack.append(-1)
-                    #print tree_hidden[0].size()
-                    stack_rep.append(torch.sum(tree_hidden[0],0))
-
+                    stack_rep.append(self.dropout(torch.sum(tree_hidden[0],0).unsqueeze(0)))
                 output, hidden = self.lstm(stack_rep[-1], stack_hidden[-1])
                 stack_hidden.append(hidden)
             
@@ -196,7 +194,7 @@ class AttnDecoderRNN(nn.Module):
                         stack_hidden.pop()
                         end -= 1
                     stack.append(-1)
-                    stack_rep.append(torch.sum(tree_hidden[0],0))
+                    stack_rep.append(torch.sum(tree_hidden[0],0).unsqueeze(0))
 
                 output, hidden = self.lstm(stack_rep[-1], stack_hidden[-1])
                 stack_hidden.append(hidden)
@@ -267,9 +265,10 @@ def train(sentence_variable, target_variable, gold_variable, mask_variable, enco
 
     decoder_output = decoder(sentence_variable, decoder_input, decoder_hidden, encoder_output, train=True, mask_variable=mask_variable) 
     
-
-    gold_variable = torch.cat((gold_variable, Variable(torch.LongTensor([decoder.tags_info.tag_to_ix[EOS]]))))
-    gold_variable = gold_variable.cuda(device) if use_cuda else gold_variable
+    if use_cuda:
+	gold_variable = torch.cat((gold_variable, Variable(torch.LongTensor([decoder.tags_info.tag_to_ix[EOS]])).cuda(device)))
+    else:
+	gold_variable = torch.cat((gold_variable, Variable(torch.LongTensor([decoder.tags_info.tag_to_ix[EOS]]))))
 
     loss += criterion(decoder_output, gold_variable)
    
