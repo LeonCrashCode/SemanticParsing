@@ -376,7 +376,7 @@ def trainIters(trn_instances, dev_instances, tst_instances, encoder, decoder, pr
                 if use_cuda:
                     torch.cuda.empty_cache()
                 
-                dev_loss += train(dev_sentence_variables[dev_idx], dev_target_variables[dev_idx], dev_gold_variables[dev_idx], dev_mask_variable, encoder, decoder, encoder_optimizer, decoder_optimizer, criterion, back_prop=False)
+                dev_loss += train(dev_sentence_variables[dev_idx], dev_target_variables[dev_idx], dev_gold_variables[dev_idx], dev_mask_variables[dev_idx], encoder, decoder, encoder_optimizer, decoder_optimizer, criterion, back_prop=False)
                 dev_idx += 1
             print('dev loss %.10f' % (dev_loss/len(dev_instances)))
             evaluate(dev_sentence_variables, dev_target_variables, encoder, decoder, dev_out_dir+str(int(iter/evaluate_every))+".drs")
