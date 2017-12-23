@@ -266,9 +266,9 @@ def train(sentence_variable, target_variable, gold_variable, mask_variable, enco
     decoder_output = decoder(sentence_variable, decoder_input, decoder_hidden, encoder_output, train=True, mask_variable=mask_variable) 
     
     if use_cuda:
-	gold_variable = torch.cat((gold_variable, Variable(torch.LongTensor([decoder.tags_info.tag_to_ix[EOS]])).cuda(device)))
+        gold_variable = torch.cat((gold_variable, Variable(torch.LongTensor([decoder.tags_info.tag_to_ix[EOS]])).cuda(device)))
     else:
-	gold_variable = torch.cat((gold_variable, Variable(torch.LongTensor([decoder.tags_info.tag_to_ix[EOS]]))))
+        gold_variable = torch.cat((gold_variable, Variable(torch.LongTensor([decoder.tags_info.tag_to_ix[EOS]]))))
 
     loss += criterion(decoder_output, gold_variable)
    
@@ -468,6 +468,8 @@ def trainIters(trn_instances, dev_instances, tst_instances, encoder, decoder, pr
 def evaluate(sentence_variables, target_variables, encoder, decoder, path):
     out = open(path,"w")
     for idx in range(len(sentence_variables)):
+        if use_cuda:
+            torch.cuda.empty_cache()
         tokens = decode(sentence_variables[idx], target_variables[idx], encoder, decoder)
 
         output = []

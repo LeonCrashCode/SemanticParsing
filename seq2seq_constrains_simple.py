@@ -183,8 +183,10 @@ def train(sentence_variable, target_variable, gold_variable, mask_variable, enco
 
     decoder_output = decoder(sentence_variable, decoder_input, decoder_hidden, encoder_output, train=True, mask_variable=mask_variable) 
     
-    gold_variable = torch.cat((gold_variable, Variable(torch.LongTensor([decoder.tags_info.tag_to_ix[EOS]]))))
-    gold_variable = gold_variable.cuda(device) if use_cuda else gold_variable
+    if use_cuda:
+        gold_variable = torch.cat((gold_variable, Variable(torch.LongTensor([decoder.tags_info.tag_to_ix[EOS]])).cuda(device)))
+    else:
+        gold_variable = torch.cat((gold_variable, Variable(torch.LongTensor([decoder.tags_info.tag_to_ix[EOS]]))))
 
     loss += criterion(decoder_output, gold_variable)
    
@@ -232,15 +234,123 @@ def trainIters(trn_instances, dev_instances, tst_instances, encoder, decoder, pr
 
     criterion = nn.NLLLoss()
 
-    masks = []
+    #===============================
+    sentence_variables = []
+    target_variables = []
+    mask_variables = []
+    gold_variables = []
+
     for instance in trn_instances:
         decoder.mask_pool.reset(len(instance[0]))
-        masks.append(decoder.mask_pool.get_all_mask(instance[3]))
+        if use_cuda:
+            mask_variables.append(Variable(torch.FloatTensor(decoder.mask_pool.get_all_mask(instance[3])), requires_grad = False).cuda(device))
+        else:
+            mask_variables.append(Variable(torch.FloatTensor(decoder.mask_pool.get_all_mask(instance[3])), requires_grad = False))
 
-    dev_masks = []
+    for instance in trn_instances:
+        sentence_variable = []
+        if use_cuda:
+            sentence_variable.append(Variable(instance[0]).cuda(device))
+            sentence_variable.append(Variable(instance[1]).cuda(device))
+            sentence_variable.append(Variable(instance[2]).cuda(device))
+            target_variables.append(Variable(torch.LongTensor([ x[1] for x in instance[3]])).cuda(device))
+        else:
+            sentence_variable.append(Variable(instance[0]))
+            sentence_variable.append(Variable(instance[1]))
+            sentence_variable.append(Variable(instance[2]))
+            target_variables.append(Variable(torch.LongTensor([ x[1] for x in instance[3]])))
+        sentence_variables.append(sentence_variable)
+
+    for instance in trn_instances:
+        gold_list = []
+        for x in instance[3]:
+            if x[0] != -2:
+                gold_list.append(x[0] + decoder.tags_info.tag_size)
+            else:
+                gold_list.append(x[1])
+        if use_cuda:
+            gold_variables.append(Variable(torch.LongTensor(gold_list)).cuda(device))
+        else:
+            gold_variables.append(Variable(torch.LongTensor(gold_list)))
+
+#==================================
+    dev_sentence_variables = []
+    dev_target_variables = []
+    dev_mask_variables = []
+    dev_gold_variables = []
+
     for instance in dev_instances:
         decoder.mask_pool.reset(len(instance[0]))
-        dev_masks.append(decoder.mask_pool.get_all_mask(instance[3]))
+        if use_cuda:
+            dev_mask_variables.append(Variable(torch.FloatTensor(decoder.mask_pool.get_all_mask(instance[3])), volatile=True).cuda(device))
+        else:
+            dev_mask_variables.append(Variable(torch.FloatTensor(decoder.mask_pool.get_all_mask(instance[3])), volatile=True))
+
+    for instance in dev_instances:
+        dev_sentence_variable = []
+        if use_cuda:
+            dev_sentence_variable.append(Variable(instance[0], volatile=True).cuda(device))
+            dev_sentence_variable.append(Variable(instance[1], volatile=True).cuda(device))
+            dev_sentence_variable.append(Variable(instance[2], volatile=True).cuda(device))
+            dev_target_variables.append(Variable(torch.LongTensor([ x[1] for x in instance[3]]), volatile=True).cuda(device))
+        else:
+            dev_sentence_variable.append(Variable(instance[0], volatile=True))
+            dev_sentence_variable.append(Variable(instance[1], volatile=True))
+            dev_sentence_variable.append(Variable(instance[2], volatile=True))
+            dev_target_variables.append(Variable(torch.LongTensor([ x[1] for x in instance[3]]), volatile=True))
+        dev_sentence_variables.append(dev_sentence_variable)
+
+    for instance in dev_instances:
+        dev_gold_list = []
+        for x in instance[3]:
+            if x[0] != -2:
+                dev_gold_list.append(x[0] + decoder.tags_info.tag_size)
+            else:
+                dev_gold_list.append(x[1])
+        if use_cuda:
+            dev_gold_variables.append(Variable(torch.LongTensor(dev_gold_list), volatile=True).cuda(device))
+        else:
+            dev_gold_variables.append(Variable(torch.LongTensor(dev_gold_list), volatile=True))
+
+#======================================
+    tst_sentence_variables = []
+    tst_target_variables = []
+    tst_mask_variables = []
+    tst_gold_variables = []
+
+    for instance in tst_instances:
+        decoder.mask_pool.reset(len(instance[0]))
+        if use_cuda:
+            tst_mask_variables.append(Variable(torch.FloatTensor(decoder.mask_pool.get_all_mask(instance[3])), volatile=True).cuda(device))
+        else:
+            tst_mask_variables.append(Variable(torch.FloatTensor(decoder.mask_pool.get_all_mask(instance[3])), volatile=True))
+
+    for instance in tst_instances:
+        tst_sentence_variable = []
+        if use_cuda:
+            tst_sentence_variable.append(Variable(instance[0], volatile=True).cuda(device))
+            tst_sentence_variable.append(Variable(instance[1], volatile=True).cuda(device))
+            tst_sentence_variable.append(Variable(instance[2], volatile=True).cuda(device))
+            tst_target_variables.append(Variable(torch.LongTensor([ x[1] for x in instance[3]]), volatile=True).cuda(device))
+        else:
+            tst_sentence_variable.append(Variable(instance[0], volatile=True))
+            tst_sentence_variable.append(Variable(instance[1], volatile=True))
+            tst_sentence_variable.append(Variable(instance[2], volatile=True))
+            dev_target_variables.append(Variable(torch.LongTensor([ x[1] for x in instance[3]]), volatile=True))
+        tst_sentence_variables.append(tst_sentence_variable)
+
+    for instance in tst_instances:
+        tst_gold_list = []
+        for x in instance[3]:
+            if x[0] != -2:
+                tst_gold_list.append(x[0] + decoder.tags_info.tag_size)
+            else:
+                tst_gold_list.append(x[1])
+        if use_cuda:
+            tst_gold_variables.append(Variable(torch.LongTensor(tst_gold_list), volatile=True).cuda(device))
+        else:
+            tst_gold_variables.append(Variable(torch.LongTensor(tst_gold_list), volatile=True))
+
     idx = -1
     iter = 0
     while True:
@@ -249,33 +359,9 @@ def trainIters(trn_instances, dev_instances, tst_instances, encoder, decoder, pr
         idx += 1
         iter += 1
         if idx == len(trn_instances):
-            idx = 0
-        sentence_variable = []
-        target_variable = Variable(torch.LongTensor([ x[1] for x in trn_instances[idx][3]]))
-        mask_variable = Variable(torch.FloatTensor(masks[idx]), requires_grad = False)
+            idx = 0       
 
-        gold_list = []
-        for x in trn_instances[idx][3]:
-            if x[0] != -2:
-                gold_list.append(x[0] + decoder.tags_info.tag_size)
-            else:
-                gold_list.append(x[1])
-
-        gold_variable = Variable(torch.LongTensor(gold_list))
-        if use_cuda:
-            sentence_variable.append(Variable(trn_instances[idx][0]).cuda(device))
-            sentence_variable.append(Variable(trn_instances[idx][1]).cuda(device))
-            sentence_variable.append(Variable(trn_instances[idx][2]).cuda(device))
-            target_variable = target_variable.cuda(device)
-            mask_variable = mask_variable.cuda(device)
-            gold_variable = gold_variable.cuda(device)
-            
-        else:
-            sentence_variable.append(Variable(trn_instances[idx][0]))
-            sentence_variable.append(Variable(trn_instances[idx][1]))
-            sentence_variable.append(Variable(trn_instances[idx][2]))        
-
-        loss = train(sentence_variable, target_variable, gold_variable, mask_variable, encoder, decoder, encoder_optimizer, decoder_optimizer, criterion)
+        loss = train(sentence_variables[idx], target_variables[idx], gold_variables[idx], mask_variables[idx], encoder, decoder, encoder_optimizer, decoder_optimizer, criterion)
         print_loss_total += loss
 
         if iter % print_every == 0:
@@ -289,51 +375,20 @@ def trainIters(trn_instances, dev_instances, tst_instances, encoder, decoder, pr
             while dev_idx < len(dev_instances):
                 if use_cuda:
                     torch.cuda.empty_cache()
-                dev_sentence_variable = []
-                dev_target_variable = Variable(torch.LongTensor([ x[1] for x in dev_instances[dev_idx][3]]), volatile=True)
-                dev_mask_variable = Variable(torch.FloatTensor(dev_masks[dev_idx]), requires_grad = False, volatile=True)
-
-                dev_gold_list = []
-                for x in dev_instances[dev_idx][3]:
-                    if x[0] != -2:
-                        dev_gold_list.append(x[0] + decoder.tags_info.tag_size)
-                    else:
-                        dev_gold_list.append(x[1])
-                dev_gold_variable = Variable(torch.LongTensor(dev_gold_list), volatile=True)
-
-                if use_cuda:
-                    dev_sentence_variable.append(Variable(dev_instances[dev_idx][0], volatile=True).cuda(device))
-                    dev_sentence_variable.append(Variable(dev_instances[dev_idx][1], volatile=True).cuda(device))
-                    dev_sentence_variable.append(Variable(dev_instances[dev_idx][2], volatile=True).cuda(device))
-                    dev_target_variable = dev_target_variable.cuda(device)
-                    dev_mask_variable = dev_mask_variable.cuda(device)
-                else:
-                    dev_sentence_variable.append(Variable(dev_instances[dev_idx][0], volatile=True))
-                    dev_sentence_variable.append(Variable(dev_instances[dev_idx][1], volatile=True))
-                    dev_sentence_variable.append(Variable(dev_instances[dev_idx][2], volatile=True)) 
-                dev_loss += train(dev_sentence_variable, dev_target_variable, dev_gold_variable, dev_mask_variable, encoder, decoder, encoder_optimizer, decoder_optimizer, criterion, back_prop=False)
+                
+                dev_loss += train(dev_sentence_variables[dev_idx], dev_target_variables[dev_idx], dev_gold_variables[dev_idx], dev_mask_variable, encoder, decoder, encoder_optimizer, decoder_optimizer, criterion, back_prop=False)
                 dev_idx += 1
             print('dev loss %.10f' % (dev_loss/len(dev_instances)))
-            evaluate(dev_instances, encoder, decoder, dev_out_dir+str(int(iter/evaluate_every))+".drs")
-            evaluate(tst_instances, encoder, decoder, tst_out_dir+str(int(iter/evaluate_every))+".drs")
+            evaluate(dev_sentence_variables, dev_target_variables, encoder, decoder, dev_out_dir+str(int(iter/evaluate_every))+".drs")
+            evaluate(tst_sentence_variables, tst_target_variables, encoder, decoder, tst_out_dir+str(int(iter/evaluate_every))+".drs")
 
-def evaluate(instances, encoder, decoder, path):
+def evaluate(sentence_variables, target_variables, encoder, decoder, path):
     out = open(path,"w")
-    for instance in instances:
+    for idx in range(len(sentence_variables)):
         if use_cuda:
             torch.cuda.empty_cache()
-        sentence_variable = []
-        target_variable = Variable(torch.LongTensor([ x[1] for x in instance[3]]), volatile=True)
-        if use_cuda:
-            sentence_variable.append(Variable(instance[0], volatile=True).cuda(device))
-            sentence_variable.append(Variable(instance[1], volatile=True).cuda(device))
-            sentence_variable.append(Variable(instance[2], volatile=True).cuda(device))
-            target_variable = target_variable.cuda(device)
-        else:
-            sentence_variable.append(Variable(instance[0], volatile=True))
-            sentence_variable.append(Variable(instance[1], volatile=True))
-            sentence_variable.append(Variable(instance[2], volatile=True))
-        tokens = decode(sentence_variable, target_variable, encoder, decoder)
+        
+        tokens = decode(sentence_variables[idx], target_variables[idx], encoder, decoder)
 
         output = []
         for type, tok in tokens:
