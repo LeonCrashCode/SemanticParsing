@@ -195,10 +195,9 @@ def train(sentence_variable, target_variable, gold_variable, mask_variable, enco
     decoder_input = torch.cat((decoder_input, target_variable))
     
     var_index = Variable(torch.LongTensor([i for i in range(decoder.tags_info.tag_size)[decoder.tags_info.x_tag_start:]]))
-    if use_cuda:
-        var_index = var_index.cuda(device)
     if back_prop == False:
         var_index.volatile = True
+    var_index = var_index.cuda(device) if use_cuda else var_index
     var_variable = decoder.var_embeds(var_index).transpose(0,1).unsqueeze(0)
 
     #decoder_hidden = decoder.initHidden()
@@ -409,8 +408,7 @@ def evaluate(sentence_variables, target_variables, encoder, decoder, path):
     out = open(path,"w")
 
     var_index = Variable(torch.LongTensor([i for i in range(decoder.tags_info.tag_size)[decoder.tags_info.x_tag_start:]]), volatile=True)
-    if use_cuda:
-        var_index = var_index.cuda(device)
+    var_index = var_index.cuda(device) if use_cuda else var_index
     var_variable = decoder.var_embeds(var_index).transpose(0,1).unsqueeze(0)
 
     for idx in range(len(sentence_variables)):
@@ -444,10 +442,10 @@ dev_file = "dev.input"
 tst_file = "test.input"
 pretrain_file = "sskip.100.vectors"
 tag_info_file = "tag.info"
-#trn_file = "train.input.part"
-#dev_file = "dev.input.part"
-#tst_file = "test.input.part"
-#pretrain_file = "sskip.100.vectors.part"
+trn_file = "train.input.part"
+dev_file = "dev.input.part"
+tst_file = "test.input.part"
+pretrain_file = "sskip.100.vectors.part"
 UNK = "<UNK>"
 
 trn_data = readfile(trn_file)
