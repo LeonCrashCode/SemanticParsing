@@ -196,7 +196,7 @@ def train(sentence_variable, target_variable, gold_variable, mask_variable, enco
     
     var_index = Variable(torch.LongTensor([i for i in range(decoder.tags_info.tag_size)[decoder.tags_info.x_tag_start:]]))
     if use_cuda:
-	var_index = var_index.cuda(device)
+        var_index = var_index.cuda(device)
     if back_prop == False:
         var_index.volatile = True
     var_variable = decoder.var_embeds(var_index).transpose(0,1).unsqueeze(0)
@@ -221,7 +221,7 @@ def train(sentence_variable, target_variable, gold_variable, mask_variable, enco
     
     return loss.data[0] / target_length
 
-def decode(sentence_variable, target_variable, encoder, decoder):
+def decode(sentence_variable, var_variable, target_variable, encoder, decoder):
     encoder_hidden = encoder.initHidden()
 
     encoder_output, encoder_hidden = encoder(sentence_variable, encoder_hidden)
@@ -231,7 +231,7 @@ def decode(sentence_variable, target_variable, encoder, decoder):
 
     decoder_hidden = (torch.cat((encoder_hidden[0][-2], encoder_hidden[0][-1]), 1).unsqueeze(0),torch.cat((encoder_hidden[1][-2], encoder_hidden[1][-1]), 1).unsqueeze(0))
 
-    tokens = decoder(sentence_variable, decoder_input, decoder_hidden, encoder_output, train=False)
+    tokens = decoder(sentence_variable, var_variable, decoder_input, decoder_hidden, encoder_output, train=False)
 
     return tokens.view(-1,2).data.tolist()
 
@@ -407,11 +407,17 @@ def trainIters(trn_instances, dev_instances, tst_instances, encoder, decoder, pr
 
 def evaluate(sentence_variables, target_variables, encoder, decoder, path):
     out = open(path,"w")
+
+    var_index = Variable(torch.LongTensor([i for i in range(decoder.tags_info.tag_size)[decoder.tags_info.x_tag_start:]]), volatile=True)
+    if use_cuda:
+        var_index = var_index.cuda(device)
+    var_variable = decoder.var_embeds(var_index).transpose(0,1).unsqueeze(0)
+
     for idx in range(len(sentence_variables)):
         if use_cuda:
             torch.cuda.empty_cache()
         
-        tokens = decode(sentence_variables[idx], target_variables[idx], encoder, decoder)
+        tokens = decode(sentence_variables[idx], var_variable, target_variables[idx], encoder, decoder)
 
         output = []
         for type, tok in tokens:
@@ -455,7 +461,7 @@ for sentence, _, lemmas, tags in trn_data:
     for lemma in lemmas:
         if lemma not in lemma_to_ix:
             lemma_to_ix[lemma] = len(lemma_to_ix)
-	    ix_to_lemma.append(lemma)
+        ix_to_lemma.append(lemma)
 #############################################
 ## tags
 tags_info = Tag(tag_info_file, ix_to_lemma)
