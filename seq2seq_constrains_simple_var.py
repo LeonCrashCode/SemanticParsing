@@ -74,30 +74,30 @@ class AttnDecoderRNN(nn.Module):
         self.input_dim = input_dim
         self.feat_dim = feat_dim
         self.hidden_dim = encoder_hidden_dim * 2
-        self.var_hidden_dim = var_hidden_dim
+        self.var_dim = var_hidden_dim
 
         self.n_layers = n_layers
         self.dropout_p = dropout_p
 
         self.dropout = nn.Dropout(self.dropout_p)
         self.tag_embeds = nn.Embedding(self.tags_info.all_tag_size, self.tag_dim)
-        self.var_embeds = nn.Embedding(self.tags_info.tag_size, self.tag_dim)
+        self.var_embeds = nn.Embedding(self.tags_info.tag_size, self.var_dim)
 
         self.lstm = nn.LSTM(self.tag_dim, self.hidden_dim, num_layers= self.n_layers)
 
         self.feat = nn.Linear(self.hidden_dim + self.tag_dim, self.feat_dim)
         self.feat_tanh = nn.Tanh()
-        self.out = nn.Linear(self.feat_dim, self.x_tag_start)
+        self.out = nn.Linear(self.feat_dim, self.tags_info.x_tag_start)
 
         self.selective_matrix = Variable(torch.randn(1, self.hidden_dim, self.hidden_dim))
         if use_cuda:
             self.selective_matrix = self.selective_matrix.cuda(device)
 
-        self.var_selective_matrix = Variable(torch.randn(1, self.hidden_dim, self.var_hidden_dim))
+        self.var_selective_matrix = Variable(torch.randn(1, self.hidden_dim, self.var_dim))
         if use_cuda:
             self.var_selective_matrix = self.var_selective_matrix.cuda(device)
 
-        self.var_lstm = nn.LSTM(self.tag_dim, self.var_hidden_dim, num_layers=1)
+        #self.var_lstm = nn.LSTM(self.var_dim, self.var_dim, num_layers=1)
 
     def initVarHidden(self):
         if use_cuda:
@@ -195,6 +195,8 @@ def train(sentence_variable, target_variable, gold_variable, mask_variable, enco
     decoder_input = torch.cat((decoder_input, target_variable))
     
     var_index = Variable(torch.LongTensor([i for i in range(decoder.tags_info.tag_size)[decoder.tags_info.x_tag_start:]]))
+    if use_cuda:
+	var_index = var_index.cuda(device)
     if back_prop == False:
         var_index.volatile = True
     var_variable = decoder.var_embeds(var_index).transpose(0,1).unsqueeze(0)
