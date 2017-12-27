@@ -356,7 +356,7 @@ def trainIters(trn_instances, dev_instances, tst_instances, encoder, decoder, pr
             tst_sentence_variable.append(Variable(instance[0], volatile=True))
             tst_sentence_variable.append(Variable(instance[1], volatile=True))
             tst_sentence_variable.append(Variable(instance[2], volatile=True))
-            dev_target_variables.append(Variable(torch.LongTensor([ x[1] for x in instance[3]]), volatile=True))
+            tst_target_variables.append(Variable(torch.LongTensor([ x[1] for x in instance[3]]), volatile=True))
         tst_sentence_variables.append(tst_sentence_variable)
 
     for instance in tst_instances:
