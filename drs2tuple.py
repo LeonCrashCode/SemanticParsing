@@ -31,6 +31,8 @@ def process(tokens):
 	i = 0
 	stack = []
 	tuples = []
+	time_num = 0
+	card_num = 0
 	while i < len(tokens):
 		tok = tokens[i]
 		if tok == "<EOS>":
@@ -57,7 +59,14 @@ def process(tokens):
 			tuples.append([get_b(stack), "TIMEX", "c"+str(current_c)])
 			tuples.append(["c"+str(current_c), "ARG1", tokens[i+1].lower()])
 			if tokens[i+2] != ")":
-				tuples.append(["c"+str(current_c), "ARG2", '"'+tokens[i+2]+'"'])
+				if tokens[i+2] == "TIME_NUMBER":
+					tuples.append(["c"+str(current_c), "ARG2", '"'+tokens[i+2]+str(time_num)+'"'])
+					time_num += 1
+				elif tokens[i+2] == "CARD_NUMBER":
+					tuples.append(["c"+str(current_c), "ARG2", '"'+tokens[i+2]+str(card_num)+'"'])
+					card_num += 1
+				else:
+					assert False
 			current_c += 1
 
 			if tokens[i+2] != ")":
@@ -111,6 +120,7 @@ def process(tokens):
 				i += 4
 			else:
 				i += 3
+	assert len(tuples)!=0
 	for item in tuples:
 		print " ".join(item)
 	print
