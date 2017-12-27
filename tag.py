@@ -132,6 +132,38 @@ class Tag:
 			return -2, self.tag_to_ix[string]
 		else:
 			return -1, -1
+	def get_var_represent(self, targets, lemmas):
+		re = [ [i+self.x_tag_start] for i in range(self.tag_size - self.x_tag_start)]
+		i = 0
+		while i < len(targets):
+			x = targets[i]
+			relation = False
+			if x[0] != -2:
+				lemma = lemmas[x[0]]
+				relation = True
+			else:
+				lemma = x[1]
+				if x[1] >= 13 and x[1] < self.k_rel_start:
+					relation = True
+
+			if relation:
+				assert i+1 < len(tokens) and target[i+1][0] == -2 and target[i+1][1] < self.tag_size and target[i+1][1] >= self.x_tag_start:
+				re[targets[i+1][1] - self.x_tag_start].append(lemma)
+
+				if i + 2 < len(targets) and target[i+2][0] == -2 and target[i+2][1] < self.tag_size and target[i+2][1] >= self.x_tag_start:
+					re[targets[i+2][1] - self.x_tag_start].append(lemma)
+
+		return re
+					
+					
+			
+				
+				
+				
+
+
+
+
 
 		
 
