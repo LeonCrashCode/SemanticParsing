@@ -459,7 +459,7 @@ for sentence, _, lemmas, tags in trn_data:
     for lemma in lemmas:
         if lemma not in lemma_to_ix:
             lemma_to_ix[lemma] = len(lemma_to_ix)
-        ix_to_lemma.append(lemma)
+            ix_to_lemma.append(lemma)
 #############################################
 ## tags
 tags_info = Tag(tag_info_file, ix_to_lemma)
