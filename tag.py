@@ -132,6 +132,7 @@ class Tag:
 			return -2, self.tag_to_ix[string]
 		else:
 			return -1, -1
+"""
 	def get_var_represent(self, targets, lemmas):
 		re = [ [i+self.x_tag_start] for i in range(self.tag_size - self.x_tag_start)]
 		i = 0
@@ -154,7 +155,7 @@ class Tag:
 					re[targets[i+2][1] - self.x_tag_start].append(lemma)
 
 		return re
-					
+"""
 					
 			
 				
