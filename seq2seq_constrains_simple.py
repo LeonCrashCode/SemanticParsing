@@ -456,7 +456,8 @@ tst_data = readfile(tst_file)
 
 print "word dict size: ", len(word_to_ix)
 print "lemma dict size: ", len(lemma_to_ix)
-print "global tag dict size: ", tags_info.tag_size
+print "global tag (w/o variables) dict size: ", tags_info.k_rel_start
+print "global tag (w variables) dict size: ", tags_info.tag_size
 
 WORD_EMBEDDING_DIM = 64
 PRETRAIN_EMBEDDING_DIM = 100
