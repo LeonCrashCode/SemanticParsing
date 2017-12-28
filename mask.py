@@ -268,12 +268,12 @@ class StructuredMask:
 			while idx < self.tags_info.k_rel_start:
 				re[idx] = self.need
 				idx += 1
-			idx = self.tags_info.p_rel_start
-			while idx < self.tags_info.k_tag_start and idx < self.p + self.tags_info.p_rel_start:
-				re[idx] = self.need
-				idx += 1
 
 			if self.relation_count <= 200:
+				idx = self.tags_info.p_rel_start
+				while idx < self.tags_info.k_tag_start and idx < self.p + self.tags_info.p_rel_start:
+					re[idx] = self.need
+					idx += 1
 				re[7] = self.need
 				re[8] = self.need
 				re[9] = self.need
@@ -311,7 +311,8 @@ class StructuredMask:
 	def _get_1_mask(self):
 		if self.stack_ex[-1][self.drs_offset] == 0:
 			re = self._get_zeros(self.tags_info.tag_size) + self._get_zeros(self.encoder_input_size)
-			re[5] = self.need
+			if self.relation_count <= 200:
+				re[5] = self.need
 			re[6] = self.need
 			return re
 		else:
@@ -321,7 +322,8 @@ class StructuredMask:
 	def _get_2_mask(self):
 		if self.stack_ex[-1][self.drs_offset] <= 1:
 			re = self._get_zeros(self.tags_info.tag_size) + self._get_zeros(self.encoder_input_size)
-			re[5] = self.need
+			if self.relation_count <= 200:
+				re[5] = self.need
 			re[6] = self.need
 			return re
 		else:
