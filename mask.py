@@ -311,7 +311,7 @@ class StructuredMask:
 	def _get_1_mask(self):
 		if self.stack_ex[-1][self.drs_offset] == 0:
 			re = self._get_zeros(self.tags_info.tag_size) + self._get_zeros(self.encoder_input_size)
-			if self.relation_count <= 200:
+			if self.relation_count <= 200 and self.k + 1 <= self.tags_info.MAX_KV: #not enough k to produce sdrs
 				re[5] = self.need
 			re[6] = self.need
 			return re
@@ -322,7 +322,7 @@ class StructuredMask:
 	def _get_2_mask(self):
 		if self.stack_ex[-1][self.drs_offset] <= 1:
 			re = self._get_zeros(self.tags_info.tag_size) + self._get_zeros(self.encoder_input_size)
-			if self.relation_count <= 200:
+			if self.relation_count <= 200 and self.k + 1 <= self.tags_info.MAX_KV: #not enough k to produce sdrs
 				re[5] = self.need
 			re[6] = self.need
 			return re
