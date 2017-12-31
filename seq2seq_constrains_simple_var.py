@@ -166,12 +166,13 @@ class AttnDecoderRNN(nn.Module):
                     if use_cuda:
                         input = input.cuda(device)
                     self.mask_pool.update(type, idx)
-                else:
+		else:
                     tokens.append([-2, idx])
                     self.mask_pool.update(-2, idx)
-
+		print idx,
                 if idx == tags_info.tag_to_ix[tags_info.EOS]:
-                    break
+		    print
+		    break
             return Variable(torch.LongTensor(tokens),volatile=True)
 
 
