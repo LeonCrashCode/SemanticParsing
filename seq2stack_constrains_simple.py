@@ -20,6 +20,8 @@ if use_cuda:
 
 dev_out_dir = sys.argv[2]+"_dev/"
 tst_out_dir = sys.argv[2]+"_tst/"
+model_dir = sys.argv[2]+"_model/"
+
 class EncoderRNN(nn.Module):
     def __init__(self, word_size, word_dim, pretrain_size, pretrain_dim, pretrain_embeddings, lemma_size, lemma_dim, input_dim, hidden_dim, n_layers=1, dropout_p=0.0):
         super(EncoderRNN, self).__init__()
@@ -311,10 +313,32 @@ def trainIters(trn_instances, dev_instances, tst_instances, encoder, decoder, pr
     print_loss_total = 0  # Reset every print_every
     plot_loss_total = 0  # Reset every plot_every
 
+    criterion = nn.NLLLoss()
+
+    check_point = {}
+    if len(sys.argv) == 4:
+        check_point = torch.load(sys.argv[3])
+        encoder.load_state_dict(check_point["encoder"])
+        decoder.load_state_dict(check_point["decoder"])
+        if use_cuda:
+            encoder = encoder.cuda(device)
+            decoder = decoder.cuda(device)
+
     encoder_optimizer = optim.Adam(filter(lambda p: p.requires_grad, encoder.parameters()), lr=learning_rate, weight_decay=1e-4)
     decoder_optimizer = optim.Adam(filter(lambda p: p.requires_grad, decoder.parameters()), lr=learning_rate, weight_decay=1e-4)
 
-    criterion = nn.NLLLoss()
+    if len(sys.argv) == 4:
+        encoder_optimizer.load_state_dict(check_point["encoder_optimizer"])
+        decoder_optimizer.load_state_dict(check_point["decoder_optimizer"])
+
+        for state in encoder_optimizer.state.values():
+            for k, v in state.items():
+                if torch.is_tensor(v):
+                    state[k] = v.cuda(device)
+        for state in decoder_optimizer.state.values():
+            for k, v in state.items():
+                if torch.is_tensor(v):
+                    state[k] = v.cuda(device)
 
 #===============================
     sentence_variables = []
@@ -455,6 +479,7 @@ def trainIters(trn_instances, dev_instances, tst_instances, encoder, decoder, pr
         if iter % evaluate_every == 0:
             dev_idx = 0
             dev_loss = 0.0
+            torch.save({"iter": iter, "idx":idx,  "encoder":encoder.state_dict(), "decoder":decoder.state_dict(), "encoder_optimizer": encoder_optimizer.state_dict(), "decoder_optimizer": decoder_optimizer.state_dict()}, model_dir+str(int(iter/evaluate_every))+".model")
             while dev_idx < len(dev_instances):
                 if use_cuda:
                     torch.cuda.empty_cache()
