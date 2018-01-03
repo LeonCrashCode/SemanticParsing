@@ -237,11 +237,11 @@ def trainIters(trn_instances, dev_instances, tst_instances, encoder, decoder, pr
 
     check_point = {}
     if len(sys.argv) == 4:
-        check_point = torch.load(sys.argv[3])
+        check_point = torch.load(sys.argv[3], map_location=device_mapping(device))
         encoder.load_state_dict(check_point["encoder"])
         decoder.load_state_dict(check_point["decoder"])
         encoder_optimizer.load_state_dict(check_point["encoder_optimizer"])
-        decoder_optimizer.load_state_dict(check_point["decoder_optimizer"])
+        decoder_optimizer.load_state_dict(check_point["decoder_optimizer"]) 
 
     #===============================
     sentence_variables = []
