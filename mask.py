@@ -239,9 +239,14 @@ class StructuredMask:
 				re[idx] = self.need
 				idx += 1
 			if self.relation_count <= 200:
-				# k is ok
-				idx = self.tags_info.k_rel_start + self.k - 1
-				re[idx] = self.need
+				cnt = 0
+				for i in range(len(stack)-1):
+					if stack[i] == 5 and stack_ex[i][self.k_relation_offset] == 0:
+						cnt += 1
+				if self.k <= self.tags_info.MAX_KV - cnt:
+					# k is ok
+					idx = self.tags_info.k_rel_start + self.k - 1
+					re[idx] = self.need
 			return re
 		else:
 			#only reduce
@@ -311,8 +316,13 @@ class StructuredMask:
 	def _get_1_mask(self):
 		if self.stack_ex[-1][self.drs_offset] == 0:
 			re = self._get_zeros(self.tags_info.tag_size) + self._get_zeros(self.encoder_input_size)
-			if self.relation_count <= 200 and self.k + 1 <= self.tags_info.MAX_KV: #not enough k to produce sdrs
-				re[5] = self.need
+			if self.relation_count <= 200:
+				cnt = 0
+				for i in range(len(stack)):
+					if stack[i] == 5 and stack_ex[i][self.k_relation_offset] == 0:
+						cnt += 1
+				if self.k + 1 <= self.tags_info.MAX_KV - cnt: #enough k to produce sdrs
+					re[5] = self.need
 			re[6] = self.need
 			return re
 		else:
@@ -322,8 +332,13 @@ class StructuredMask:
 	def _get_2_mask(self):
 		if self.stack_ex[-1][self.drs_offset] <= 1:
 			re = self._get_zeros(self.tags_info.tag_size) + self._get_zeros(self.encoder_input_size)
-			if self.relation_count <= 200 and self.k + 1 <= self.tags_info.MAX_KV: #not enough k to produce sdrs
-				re[5] = self.need
+			if self.relation_count <= 200:
+				cnt = 0
+				for i in range(len(stack)):
+					if stack[i] == 5 and stack_ex[i][self.k_relation_offset] == 0:
+						cnt += 1
+				if self.k + 1 <= self.tags_info.MAX_KV - cnt: # enough k to produce sdrs
+					re[5] = self.need
 			re[6] = self.need
 			return re
 		else:
