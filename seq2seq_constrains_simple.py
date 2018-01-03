@@ -1,4 +1,4 @@
-# -*- coding: utf-8 -*-
+    # -*- coding: utf-8 -*-
 import re
 import random
 
@@ -20,6 +20,7 @@ if use_cuda:
 
 dev_out_dir = sys.argv[2]+"_dev/"
 tst_out_dir = sys.argv[2]+"_tst/"
+model_dir = sys.argv[2]+"_model/"
 
 class EncoderRNN(nn.Module):
     def __init__(self, word_size, word_dim, pretrain_size, pretrain_dim, pretrain_embeddings, lemma_size, lemma_dim, input_dim, hidden_dim, n_layers=1, dropout_p=0.0):
@@ -234,6 +235,14 @@ def trainIters(trn_instances, dev_instances, tst_instances, encoder, decoder, pr
 
     criterion = nn.NLLLoss()
 
+    check_point = {}
+    if len(sys.argv) == 4:
+        check_point = torch.load(sys.argv[3])
+        encoder = check_point["encoder"]
+        decoder = check_point["decoder"]
+        encoder_optimizer = check_point["encoder_optimizer"]
+        decoder_optimizer = check_point["decoder_optimizer"]
+
     #===============================
     sentence_variables = []
     target_variables = []
@@ -353,6 +362,10 @@ def trainIters(trn_instances, dev_instances, tst_instances, encoder, decoder, pr
 
     idx = -1
     iter = 0
+    if len(sys.argv) == 4:
+        iter = check_point["iter"]
+        idx = check_point["idx"]
+        
     while True:
         if use_cuda:
             torch.cuda.empty_cache()
@@ -372,6 +385,7 @@ def trainIters(trn_instances, dev_instances, tst_instances, encoder, decoder, pr
         if iter % evaluate_every == 0:
             dev_idx = 0
             dev_loss = 0.0
+            torch.save({"iter": iter, "idx":idx,  "encoder":encoder.state_dict(), "decoder":decoder.state_dict(), "encoder_optimizer": encoder_optimizer, "decoder_optimizer": decoder_optimizer}, model_dir+str(int(iter/evaluate_every))+".model")
             while dev_idx < len(dev_instances):
                 if use_cuda:
                     torch.cuda.empty_cache()
