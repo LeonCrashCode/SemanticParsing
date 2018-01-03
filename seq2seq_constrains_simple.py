@@ -230,18 +230,33 @@ def trainIters(trn_instances, dev_instances, tst_instances, encoder, decoder, pr
     print_loss_total = 0  # Reset every print_every
     plot_loss_total = 0  # Reset every plot_every
 
-    encoder_optimizer = optim.Adam(filter(lambda p: p.requires_grad, encoder.parameters()), lr=learning_rate, weight_decay=1e-4)
-    decoder_optimizer = optim.Adam(filter(lambda p: p.requires_grad, decoder.parameters()), lr=learning_rate, weight_decay=1e-4)
-
     criterion = nn.NLLLoss()
 
     check_point = {}
     if len(sys.argv) == 4:
-        check_point = torch.load(sys.argv[3], map_location=device_mapping(device))
+        check_point = torch.load(sys.argv[3])
         encoder.load_state_dict(check_point["encoder"])
         decoder.load_state_dict(check_point["decoder"])
+        if use_cuda:
+            encoder = encoder.cuda(device)
+            decoder = decoder.cuda(device)
+
+    encoder_optimizer = optim.Adam(filter(lambda p: p.requires_grad, encoder.parameters()), lr=learning_rate, weight_decay=1e-4)
+    decoder_optimizer = optim.Adam(filter(lambda p: p.requires_grad, decoder.parameters()), lr=learning_rate, weight_decay=1e-4)
+
+    if len(sys.argv) == 4:
         encoder_optimizer.load_state_dict(check_point["encoder_optimizer"])
-        decoder_optimizer.load_state_dict(check_point["decoder_optimizer"]) 
+        decoder_optimizer.load_state_dict(check_point["decoder_optimizer"])
+
+        for state in encoder_optimizer.state.values():
+            for k, v in state.items():
+                if torch.is_tensor(v):
+                    state[k] = v.cuda(device)
+        for state in decoder_optimizer.state.values():
+            for k, v in state.items():
+                if torch.is_tensor(v):
+                    state[k] = v.cuda(device)
+
 
     #===============================
     sentence_variables = []
