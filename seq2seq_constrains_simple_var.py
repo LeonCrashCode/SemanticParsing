@@ -481,7 +481,21 @@ print "pretrain dict size:", len(pretrain_to_ix)
 
 dev_data = readfile(dev_file)
 tst_data = readfile(tst_file)
-
+"""
+for line in open("log"):
+    line = line.strip().split()
+    mask_pool.reset(1)
+    mask_pool._print_state()
+    for item in line:
+	ix = int(item)
+	if ix < tags_info.tag_size:
+	    print tags_info.ix_to_tag[ix]
+	else:
+	    print tags_info.ix_to_lemma[ix-tags_info.tag_size]
+	mask_pool.update(-1,ix)
+	mask_pool._print_state()
+exit(1)
+"""
 print "word dict size: ", len(word_to_ix)
 print "lemma dict size: ", len(lemma_to_ix)
 print "global tag dict size: ", tags_info.tag_size
