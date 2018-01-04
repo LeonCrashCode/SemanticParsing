@@ -56,7 +56,7 @@ def process(tokens):
 			#if tokens[i+1] not in variables:
 			#	tuples.append([get_b(stack), "REF", tokens[i+1].lower()])
 			#	variables.add(tokens[i+1])
-			tuples.append([get_b(stack), "TIMEX", "c"+str(current_c)])
+			#tuples.append([get_b(stack), "TIMEX", "c"+str(current_c)])
 			#tuples.append(["c"+str(current_c), "ARG1", tokens[i+1].lower()])
 			if tokens[i+2] != ")":
 				if tokens[i+2] == "TIME_NUMBER":
@@ -108,7 +108,7 @@ def process(tokens):
 			#if tokens[i+1] not in variables:
 			#	tuples.append([get_b(stack), "REF", tokens[i+1].lower()])
 			#	variables.add(tokens[i+1])
-			tuples.append([get_b(stack), tok[:-1], "c"+str(current_c)])
+			#tuples.append([get_b(stack), tok[:-1], "c"+str(current_c)])
 			#tuples.append(["c"+str(current_c), "ARG1", tokens[i+1].lower()])
 			if tokens[i+2] != ")":
 				#if tokens[i+2] not in variables:
@@ -121,7 +121,7 @@ def process(tokens):
 				i += 4
 			else:
 				i += 3
-	assert len(tuples)!=0
+
 	for item in tuples:
 		print " ".join(item)
 	print
