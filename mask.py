@@ -548,5 +548,200 @@ class StructuredMask:
 	def _get_ones(self, size):
 		return [self.need for i in range(size)]
 
+class OuterMask:
+	#sdrs should have at least two k(), at least one relation, and the relation should follow k()
+	#drs should have at least anything, except variables.
+	#not, nec, pos should have and only have one drs or sdrs
+	#imp, or, duplex should have and only have two drs or sdrs
+	#timex should be timex(variables, TIME_NUMBER)
+	#card should be card(variables, CARD_NUMBER)
+	#k(, p( should have and only have one drs or sdrs
+	#variable constrains
+	def __init__(self, tags_info, encoder_input_size=0):
+		self.tags_info = tags_info
+		self.mask = 0
+		self.need = 1
+
+		self.SOS = tags_info.all_tag_size*10
+		self.relation = tags_info.all_tag_size*10+1
+
+		self.variable_offset = 0
+		self.relation_offset = 1
+		self.k_relation_offset = 2
+		self.p_relation_offset = 3
+		self.drs_offset = 4
+		self.six_offset = 5
+		
+		self.reset(encoder_input_size)
+	def reset(self, encoder_input_size):
+		self.relation_count = 0
+		self.stack = [self.SOS]
+		self.encoder_input_size = encoder_input_size
+		self.stack_ex = [[0 for i in range(6)]]
+
+		self.stack_variables = []
+		self.k = 1
+		self.p = 1
+		self.x = 1
+		self.e = 1
+		self.s = 1
+
+	def get_all_mask(self, inputs):
+		res = []
+		#self._print_state()
+		res.append(self.get_step_mask())
+		#print res[-1]
+		for type, ix in inputs:
+			assert res[-1][ix] != self.mask
+			self.update(type, ix)
+			#self._print_state()
+			res.append(self.get_step_mask())
+			#print res[-1]
+		return res
+
+	def get_step_mask(self):
+		if self.stack[-1] == self.SOS:
+			#SOS
+			return self._get_sos_mask()
+		elif self.stack[-1] == 5:
+			#SDRS
+			return self._get_sdrs_mask()
+		elif self.stack[-1] == 6:
+			#DRS
+			return self._get_drs_mask()
+		elif self.stack[-1] in [7, 8, 9]:
+			#not, nec, pos
+			return self._get_1_mask()
+		elif self.stack[-1] in [10, 11, 12]:
+			#or, imp, duplex
+			return self._get_2_mask()
+		elif self.stack[-1] == self.tags_info.k_rel_start or self.stack[-1] == self.tags_info.p_rel_start:
+			#k p
+			return self._get_1_mask()
+		else:
+			assert False
+	def _get_sos_mask(self):
+		if self.stack_ex[-1][self.drs_offset] == 0:
+			re = self._get_zeros(self.tags_info.tag_size) + self._get_zeros(self.encoder_input_size)
+			re[self.tags_info.tag_to_ix[self.tags_info.rel_drs]] = self.need
+			return re
+		else:
+			re = self._get_zeros(self.tags_info.tag_size) + self._get_zeros(self.encoder_input_size)
+			re[1] = self.need
+			return re
+	def _get_sdrs_mask(self):
+		#SDRS
+		if self.stack_ex[-1][self.k_relation_offset] < 2:
+			#only k
+			re = self._get_zeros(self.tags_info.tag_size) + self._get_zeros(self.encoder_input_size)
+			idx = self.tags_info.k_rel_start
+			re[idx] = self.need
+			return re
+		else:
+			#only reduce
+			re = self._get_zeros(self.tags_info.tag_size) + self._get_zeros(self.encoder_input_size)
+			re[self.tags_info.tag_to_ix[self.tags_info.reduce]] = self.need
+			if self.relation_count <= 40:
+				cnt = 0
+				for i in range(len(self.stack)-1):
+					if self.stack[i] == 5 and self.stack_ex[i][self.k_relation_offset] == 0:
+						cnt += 1
+				if self.k <= self.tags_info.MAX_KV - cnt:
+					# k is ok
+					idx = self.tags_info.k_rel_start
+					re[idx] = self.need
+			return re
+	def _get_drs_mask(self):
+		re = self._get_zeros(self.tags_info.tag_size) + self._get_zeros(self.encoder_input_size)
+		re[self.tags_info.tag_to_ix[self.tags_info.reduce]] = self.need
+		if self.relation_count <= 40:
+			idx = self.tags_info.p_rel_start
+			re[idx] = self.need
+			re[7] = self.need
+			re[8] = self.need
+			re[9] = self.need
+			re[10] = self.need
+			re[11] = self.need
+			re[12] = self.need
+		return re
+	def _get_1_mask(self):
+		if self.stack_ex[-1][self.drs_offset] == 0:
+			re = self._get_zeros(self.tags_info.tag_size) + self._get_zeros(self.encoder_input_size)
+			if self.relation_count <= 40:
+				cnt = 0
+				for i in range(len(self.stack)):
+					if self.stack[i] == 5 and self.stack_ex[i][self.k_relation_offset] == 0:
+						cnt += 1
+				if self.k + 1 <= self.tags_info.MAX_KV - cnt: #enough k to produce sdrs
+					re[5] = self.need
+			re[6] = self.need
+			return re
+		else:
+			re = self._get_zeros(self.tags_info.tag_size) + self._get_zeros(self.encoder_input_size)
+			re[4] = self.need
+			return re
+	def _get_2_mask(self):
+		if self.stack_ex[-1][self.drs_offset] <= 1:
+			re = self._get_zeros(self.tags_info.tag_size) + self._get_zeros(self.encoder_input_size)
+			if self.relation_count <= 40:
+				cnt = 0
+				for i in range(len(self.stack)):
+					if self.stack[i] == 5 and self.stack_ex[i][self.k_relation_offset] == 0:
+						cnt += 1
+				if self.k + 1 <= self.tags_info.MAX_KV - cnt: # enough k to produce sdrs
+					re[5] = self.need
+			re[6] = self.need
+			return re
+		else:
+			re = self._get_zeros(self.tags_info.tag_size) + self._get_zeros(self.encoder_input_size)
+			re[4] = self.need
+			return re
+
+	def update(self, type, ix):
+		if ix >= 5 and ix <= 12:
+			self.stack.append(ix)
+			self.relation_count += 1
+			self.stack_ex.append([0 for i in range(6)])
+			self.stack_variables.append(-1)
+		elif ix == self.tags_info.k_rel_start:
+			self.stack.append(self.tags_info.k_rel_start)
+			self.relation_count += 1
+			self.stack_ex.append([0 for i in range(6)])
+			self.stack_variables.append(-1)
+			self.k += 1
+		elif ix == self.tags_info.p_rel_start:
+			self.stack.append(self.tags_info.p_rel_start)
+			self.relation_count += 1
+			self.stack_ex.append([0 for i in range(6)])
+			self.stack_variables.append(-1)
+			self.p += 1
+		elif ix == 4:
+			self.stack_ex.pop()
+			if self.stack[-1] == 5 or self.stack[-1] == 6:
+				self.stack_ex[-1][self.drs_offset] += 1
+			elif self.stack[-1] >= 7 and self.stack[-1] <= 12:
+				self.stack_ex[-1][self.six_offset] += 1
+			elif self.stack[-1] == self.tags_info.k_rel_start:
+				self.stack_ex[-1][self.k_relation_offset] += 1
+			elif self.stack[-1] == self.tags_info.p_rel_start:
+				self.stack_ex[-1][self.p_relation_offset] += 1
+			else:
+				assert False
+			self.stack.pop()
+		else:
+			assert False
+
+	def _print_state(self):
+		print "relation_count", self.relation_count
+		print "stack", self.stack
+		print "stack_ex", self.stack_ex
+		print "stack_variables", self.stack_variables
+		print "kpxes", self.k, self.p, self.x, self.e, self.s
+	def _get_zeros(self, size):
+		return [self.mask for i in range(size)]
+
+	def _get_ones(self, size):
+		return [self.need for i in range(size)]
+
 
 

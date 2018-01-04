@@ -57,6 +57,27 @@ def data2instance_constrains(trn_data, ixes):
 		
 	return instances
 
+def data2instance_structure(trn_data, ixes):
+	instances = []
+	for one in trn_data:
+		instances.append([])
+		## words
+		instances[-1].append(torch.LongTensor([get_from_ix(w, ixes[0][0], ixes[0][1]) for w in one[0]]))
+		instances[-1].append(torch.LongTensor([get_from_ix(w, ixes[1][0], ixes[1][1]) for w in one[1]]))
+		instances[-1].append(torch.LongTensor([get_from_ix(w, ixes[2][0], ixes[2][1]) for w in one[2]]))
+
+		instances[-1].append([])
+		for item in one[3]:
+			type, idx = ixes[3].type(item)
+			if type == -2:
+				if idx >= 4 and idx <= 12:
+					instances[-1][-1].append([type, idx])
+				elif idx >= ixes[3].k_rel_start and idx < ixes[3].p_rel_start:
+					instances[-1][-1].append([type, ixes[3].k_rel_start])
+				elif idx >= ixes[3].p_rel_start and idx < ixes[3].k_tag_start:
+					instances[-1][-1].append([type, ixes[3].p_rel_start])
+	return instances
+
 
 def data2instance_orig(trn_data, ixes):
 	instances = []
