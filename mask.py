@@ -725,6 +725,8 @@ class OuterMask:
 			else:
 				assert False
 			self.stack.pop()
+		elif ix == 1:
+			pass
 		else:
 			assert False
 
