@@ -67,15 +67,27 @@ def data2instance_structure(trn_data, ixes):
 		instances[-1].append(torch.LongTensor([get_from_ix(w, ixes[2][0], ixes[2][1]) for w in one[2]]))
 
 		instances[-1].append([])
+		relation = 0
 		for item in one[3]:
 			type, idx = ixes[3].type(item)
 			if type == -2:
-				if idx >= 4 and idx <= 12:
+				if idx == 4:
+					if relation == 0:
+						instances[-1][-1].append([type, idx])
+					elif relation > 0:
+						relation -= 1
+					else:
+						assert False
+				elif idx >= 5 and idx <= 12:
 					instances[-1][-1].append([type, idx])
 				elif idx >= ixes[3].k_rel_start and idx < ixes[3].p_rel_start:
 					instances[-1][-1].append([type, ixes[3].k_rel_start])
 				elif idx >= ixes[3].p_rel_start and idx < ixes[3].k_tag_start:
 					instances[-1][-1].append([type, ixes[3].p_rel_start])
+				elif idx >= 13 and idx < ixes[3].k_rel_start:
+					relation += 1
+			else:
+				relation += 1
 	return instances
 
 

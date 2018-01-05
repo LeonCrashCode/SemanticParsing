@@ -702,18 +702,15 @@ class OuterMask:
 			self.stack.append(ix)
 			self.relation_count += 1
 			self.stack_ex.append([0 for i in range(6)])
-			self.stack_variables.append(-1)
 		elif ix == self.tags_info.k_rel_start:
 			self.stack.append(self.tags_info.k_rel_start)
 			self.relation_count += 1
 			self.stack_ex.append([0 for i in range(6)])
-			self.stack_variables.append(-1)
 			self.k += 1
 		elif ix == self.tags_info.p_rel_start:
 			self.stack.append(self.tags_info.p_rel_start)
 			self.relation_count += 1
 			self.stack_ex.append([0 for i in range(6)])
-			self.stack_variables.append(-1)
 			self.p += 1
 		elif ix == 4:
 			self.stack_ex.pop()
