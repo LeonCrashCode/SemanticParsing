@@ -66,7 +66,7 @@ class EncoderRNN(nn.Module):
 
 class SimpleRNN(nn.Module):
     def __init__(self, structure_size, tag_dim, hidden_dim, n_layers=1, dropout_p=0.0):
-        super(EncoderRNN, self).__init__()
+        super(SimpleRNN, self).__init__()
         self.n_layers = n_layers
         self.dropout_p = dropout_p
         self.tag_dim = tag_dim
@@ -540,7 +540,7 @@ from utils import readfile
 from utils import data2instance_structure
 from utils import readpretrain
 from utils import readstructure
-from utils import structure2instances
+from utils import structure2instance
 from tag import Tag
 #from mask import Mask
 
