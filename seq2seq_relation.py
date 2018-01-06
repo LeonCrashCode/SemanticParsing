@@ -554,7 +554,7 @@ tag_info_file = "tag.info"
 #tst_file = "test.input.part"
 #pretrain_file = "sskip.100.vectors.part"
 dev_struct_file = "dev.struct"
-tst_struct_file = "tst.struct"
+tst_struct_file = "test.struct"
 UNK = "<UNK>"
 
 trn_data = readfile(trn_file)
