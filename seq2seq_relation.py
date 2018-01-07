@@ -353,9 +353,9 @@ def trainIters(trn_instances, dev_instances, tst_instances, dev_struct_instances
                     if len(instance[4][p]) == 0:
                         target_variable.append(None)
                     else:
-                        target_variable.append(Variable(torch.LongTensor([ x[1] for x in target])).cuda(device))
+                        target_variable.append(Variable(torch.LongTensor([ x[1] for x in instance[4][p]])).cuda(device))
                     least = False
-                    if idx == 5 or (idx == 6 and instance[3][i+1][1] == 4)
+                    if idx == 5 or (idx == 6 and instance[3][i+1][1] == 4):
                         least = True
                     mask_variable.append(Variable(torch.FloatTensor(decoder.mask_pool.get_all_mask(len(instance[4][p]), least)), requires_grad = False).cuda(device))
                     p += 1
@@ -372,9 +372,9 @@ def trainIters(trn_instances, dev_instances, tst_instances, dev_struct_instances
                     if len(instance[4][p]) == 0:
                         target_variable.append(None)
                     else:
-                        target_variable.append(Variable(torch.LongTensor([ x[1] for x in target])))
+                        target_variable.append(Variable(torch.LongTensor([ x[1] for x in instance[4][p]])))
                     least = False
-                    if idx == 5 or (idx == 6 and instance[3][i+1][1] == 4)
+                    if idx == 5 or (idx == 6 and instance[3][i+1][1] == 4):
                         least = True
                     mask_variable.append(Variable(torch.FloatTensor(decoder.mask_pool.get_all_mask(len(instance[4][p]), least)), requires_grad = False))
                     p += 1
@@ -426,9 +426,9 @@ def trainIters(trn_instances, dev_instances, tst_instances, dev_struct_instances
                     if len(instance[4][p]) == 0:
                         dev_target_variable.append(None)
                     else:
-                        dev_target_variable.append(Variable(torch.LongTensor([ x[1] for x in target])).cuda(device))
+                        dev_target_variable.append(Variable(torch.LongTensor([ x[1] for x in instance[4][p]])).cuda(device))
                     least = False
-                    if idx == 5 or (idx == 6 and instance[3][i+1][1] == 4)
+                    if idx == 5 or (idx == 6 and instance[3][i+1][1] == 4):
                         least = True
                     dev_mask_variable.append(Variable(torch.FloatTensor(decoder.mask_pool.get_all_mask(len(instance[4][p]), least)), requires_grad = False).cuda(device))
                     p += 1
@@ -445,9 +445,9 @@ def trainIters(trn_instances, dev_instances, tst_instances, dev_struct_instances
                     if len(instance[4][p]) == 0:
                         dev_target_variable.append(None)
                     else:
-                        dev_target_variable.append(Variable(torch.LongTensor([ x[1] for x in target])))
+                        dev_target_variable.append(Variable(torch.LongTensor([ x[1] for x in instance[4][p]])))
                     least = False
-                    if idx == 5 or (idx == 6 and instance[3][i+1][1] == 4)
+                    if idx == 5 or (idx == 6 and instance[3][i+1][1] == 4):
                         least = True
                     dev_mask_variable.append(Variable(torch.FloatTensor(decoder.mask_pool.get_all_mask(len(instance[4][p]), least)), requires_grad = False))
                     p += 1
