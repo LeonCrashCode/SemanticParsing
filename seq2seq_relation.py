@@ -154,7 +154,6 @@ class AttnDecoderRNN(nn.Module):
             total_score = torch.cat((global_score, selective_score), 1)
 
             mask = mask_pool.get_all_mask(total_score.size(0), least)
-
             mask_variable = Variable(torch.FloatTensor(mask), requires_grad = False)
             if use_cuda:
                 mask_variable = mask_variable.cuda(device)
@@ -208,10 +207,8 @@ class AttnDecoderRNN(nn.Module):
                     input = Variable(torch.LongTensor([idx]), volatile=True)
                     if use_cuda:
                         input = input.cuda(device)
-                    self.mask_pool.update(type, idx)
                 else:
                     tokens.append([-2, idx])
-                    self.mask_pool.update(-2, idx)
 
                 if idx == tags_info.tag_to_ix[tags_info.EOS] or rel > 61 or total_rel > 121:
                     break

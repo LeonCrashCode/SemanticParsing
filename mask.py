@@ -763,10 +763,10 @@ class RelationMask:
 	def _get_relations(self):
 		res = self._get_zeros(self.tags_info.tag_size) + self._get_ones(self.encoder_input_size)
 		idx = 13
-		while idx < k_rel_start:
+		while idx < self.tags_info.k_rel_start:
 			res[idx] = self.need
 			idx += 1
-
+		return res
 	def get_all_mask(self, input_size, least):
 		relations = self._get_relations()
 		res = []
@@ -774,7 +774,7 @@ class RelationMask:
 			res.append(relations)
 		if least:
 			res[1][1] = self.mask # next of condition
-
+		return res
 	def get_one_mask(self, least):
 		relations = self._get_relations()
 		if least:
