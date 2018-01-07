@@ -72,19 +72,19 @@ class SimpleRNN(nn.Module):
         self.tag_dim = tag_dim
         self.hidden_dim = hidden_dim
 
-        self.structure_embeds = nn.Embedding(structure_size, word_dim)
+        self.structure_embeds = nn.Embedding(structure_size, self.tag_dim)
         self.dropout = nn.Dropout(self.dropout_p)
 
         self.lstm = nn.LSTM(tag_dim, hidden_dim, num_layers=self.n_layers, bidirectional=True)
 
     def forward(self, sentence, hidden, train=True):
-        structure_embedded = self.structure_embeds(sentence)
+ 	structure_embedded = self.structure_embeds(sentence)
 
         if train:
             structure_embedded = self.dropout(structure_embedded)
             self.lstm.dropout = self.dropout_p
 
-        output, hidden = self.lstm(structure_embedded.view(len(sentence[0]),1,-1), hidden)
+        output, hidden = self.lstm(structure_embedded.unsqueeze(1), hidden)
         return output, hidden
 
     def initHidden(self):
@@ -115,7 +115,7 @@ class AttnDecoderRNN(nn.Module):
         self.dropout = nn.Dropout(self.dropout_p)
         self.tag_embeds = nn.Embedding(self.tags_info.all_tag_size, self.tag_dim)
 
-        self.condition2input = nn.Linear(encoder_hidden_dim, self.tag_dim)
+        self.condition2input = nn.Linear(self.hidden_dim, self.tag_dim)
 
         self.lstm = nn.LSTM(self.tag_dim, self.hidden_dim, num_layers= self.n_layers)
 
@@ -138,7 +138,8 @@ class AttnDecoderRNN(nn.Module):
             condition = self.condition2input(condition).view(1,1,-1)
             condition = self.dropout(condition)
 
-            output, hidden = self.lstm(torch.cat((condition, embedded), 0), hidden)
+	    embedded = torch.cat((condition, embedded), 0)
+            output, hidden = self.lstm(embedded, hidden)
             
             selective_score = torch.bmm(torch.bmm(output.transpose(0,1), self.selective_matrix), encoder_output.transpose(0,1).transpose(1,2)).view(output.size(0), -1)
 
@@ -216,29 +217,30 @@ def train(sentence_variable, struct_variable, target_variables, gold_variables, 
 
     decoder_hidden = (torch.cat((encoder_hidden[0][-2], encoder_hidden[0][-1]), 1).unsqueeze(0),torch.cat((encoder_hidden[1][-2], encoder_hidden[1][-1]), 1).unsqueeze(0))
 
-    structs = struct_variable.view(-1).tolist()
+    structs = struct_variable.view(-1).data.tolist()
     p = 0
+    total_rel = 0
     for i in range(len(structs)):
         if structs[i] == 5 or structs[i] == 6:
             decoder_input = Variable(torch.LongTensor([decoder.tags_info.tag_to_ix[SOS]]))
             if back_prop == False:
                 decoder_input.volatile=True
             decoder_input = decoder_input.cuda(device) if use_cuda else decoder_input
-            if target_variables[p] != None:
+	    if torch.is_tensor(target_variables[p]):
                 decoder_input = torch.cat((decoder_input, target_variables[p]))
 
-            decoder_output, decoder_hidden = decoder(sentence_variable, struct_variable, [s_encoder_output[i], decoder_input], decoder_hidden, encoder_output, train=True) 
+            decoder_output, decoder_hidden = decoder(sentence_variable, [s_encoder_output[i], decoder_input], decoder_hidden, encoder_output, total_rel, train=True) 
 
             gold_variable = Variable(torch.LongTensor([decoder.tags_info.tag_to_ix[EOS]]))
             if back_prop == False:
                 gold_variable.volatile = True
             gold_variable = gold_variable.cuda(device) if use_cuda else gold_variable
-            if gold_variables[p] != None:
-                gold_variable = torch.cat((gold_variables[p], gold_variable))
+            if torch.is_tensor(gold_variables[p]):
+                old_variable = torch.cat((gold_variables[p], gold_variable))
             loss += criterion(decoder_output[1:], gold_variable)
             p += 1
             target_length += gold_variable.size(0)
-            
+    
     assert p == len(gold_variables) and p == len(target_variables)
 
     if back_prop:
@@ -259,15 +261,16 @@ def decode(sentence_variable, struct_variable, target_variable, encoder, s_encod
     
     decoder_hidden = (torch.cat((encoder_hidden[0][-2], encoder_hidden[0][-1]), 1).unsqueeze(0),torch.cat((encoder_hidden[1][-2], encoder_hidden[1][-1]), 1).unsqueeze(0))
 
-    structs = struct_variable.view(-1).tolist()
+    structs = struct_variable.view(-1).data.tolist()
 
     all_tokens = []
+    total_rel = 0
     for i in range(structs):
         if structs[i] == 5 or structs[i] == 6:
             decoder_input = Variable(torch.LongTensor([decoder.tags_info.tag_to_ix[SOS]]), volatile=True)
             decoder_input = decoder_input.cuda(device) if use_cuda else decoder_input
 
-            tokens, decoder_hidden = decoder(sentence_variable, [s_encoder_output[i], decoder_input], decoder_hidden, encoder_output, train=False)
+            tokens, decoder_hidden = decoder(sentence_variable, [s_encoder_output[i], decoder_input], decoder_hidden, encoder_output, total_rel, train=False)
 
             all_tokens.append(tokens.view(-1,2).data.tolist())
     return all_tokens
@@ -332,6 +335,7 @@ def trainIters(trn_instances, dev_instances, tst_instances, dev_struct_instances
 
     for instance in trn_instances:
         sentence_variable = []
+	target_variable = []
         if use_cuda:
             sentence_variable.append(Variable(instance[0]).cuda(device))
             sentence_variable.append(Variable(instance[1]).cuda(device))
@@ -339,20 +343,21 @@ def trainIters(trn_instances, dev_instances, tst_instances, dev_struct_instances
             sentence_variable.append(Variable(torch.LongTensor([ x[1] for x in instance[3]])).cuda(device))
             for target in instance[4]:
                 if len(target) == 0:
-                    target_variables.append(None)
+                    target_variable.append(None)
                 else:
-                    target_variables.append(Variable(torch.LongTensor([ x[1] for x in target])).cuda(device))
+                    target_variable.append(Variable(torch.LongTensor([ x[1] for x in target])).cuda(device))
         else:
             sentence_variable.append(Variable(instance[0]))
             sentence_variable.append(Variable(instance[1]))
             sentence_variable.append(Variable(instance[2]))
             sentence_variable.append(Variable(torch.LongTensor([ x[1] for x in instance[3]])))
-            for target in instance[4]:
+	    for target in instance[4]:
                 if len(target) == 0:
-                    target_variables.append(None)
+                    target_variable.append(None)
                 else:
-                    target_variables.append(Variable(torch.LongTensor([ x[1] for x in target])))
+                    target_variable.append(Variable(torch.LongTensor([ x[1] for x in target])))
         sentence_variables.append(sentence_variable)
+	target_variables.append(target_variable)
 
     for instance in trn_instances:
         gold_lists = []
@@ -380,16 +385,17 @@ def trainIters(trn_instances, dev_instances, tst_instances, dev_struct_instances
 
     for instance in dev_instances:
         dev_sentence_variable = []
-        if use_cuda:
+        dev_target_variable = []
+	if use_cuda:
             dev_sentence_variable.append(Variable(instance[0], volatile=True).cuda(device))
             dev_sentence_variable.append(Variable(instance[1], volatile=True).cuda(device))
             dev_sentence_variable.append(Variable(instance[2], volatile=True).cuda(device))
             dev_sentence_variables.append(Variable(torch.LongTensor([ x[1] for x in instance[3]]), volatile=True).cuda(device))
             for target in instance[4]:
                 if len(target) == 0:
-                    dev_target_variables.append(None)
+                    dev_target_variable.append(None)
                 else:
-                    dev_target_variables.append(Variable(torch.LongTensor([ x[1] for x in target]), volatile=True).cuda(device))
+                    dev_target_variable.append(Variable(torch.LongTensor([ x[1] for x in target]), volatile=True).cuda(device))
         else:
             dev_sentence_variable.append(Variable(instance[0], volatile=True))
             dev_sentence_variable.append(Variable(instance[1], volatile=True))
@@ -397,11 +403,12 @@ def trainIters(trn_instances, dev_instances, tst_instances, dev_struct_instances
             dev_sentence_variables.append(Variable(torch.LongTensor([ x[1] for x in instance[3]]), volatile=True))
             for target in instance[4]:
                 if len(target) == 0:
-                    dev_target_variables.append(None)
+                    dev_target_variable.append(None)
                 else:
-                    dev_target_variables.append(Variable(torch.LongTensor([ x[1] for x in target]), volatile=True))
+                    dev_target_variable.append(Variable(torch.LongTensor([ x[1] for x in target]), volatile=True))
         dev_sentence_variables.append(dev_sentence_variable)
-
+	dev_target_variables.append(dev_target_variable)
+	
     for instance in dev_instances:
         dev_gold_lists = []
         for target in instance[4]:
@@ -431,16 +438,17 @@ def trainIters(trn_instances, dev_instances, tst_instances, dev_struct_instances
 
     for instance in tst_instances:
         tst_sentence_variable = []
-        if use_cuda:
+        tst_target_variable = []
+	if use_cuda:
             tst_sentence_variable.append(Variable(instance[0], volatile=True).cuda(device))
             tst_sentence_variable.append(Variable(instance[1], volatile=True).cuda(device))
             tst_sentence_variable.append(Variable(instance[2], volatile=True).cuda(device))
             tst_sentence_variables.append(Variable(torch.LongTensor([ x[1] for x in instance[3]]), volatile=True).cuda(device))
             for target in instance[4]:
                 if len(target) == 0:
-                    tst_target_variables.append(None)
+                    tst_target_variable.append(None)
                 else:
-                    tst_target_variables.append(Variable(torch.LongTensor([ x[1] for x in target]), volatile=True).cuda(device))
+                    tst_target_variable.append(Variable(torch.LongTensor([ x[1] for x in target]), volatile=True).cuda(device))
         else:
             tst_sentence_variable.append(Variable(instance[0], volatile=True))
             tst_sentence_variable.append(Variable(instance[1], volatile=True))
@@ -448,10 +456,11 @@ def trainIters(trn_instances, dev_instances, tst_instances, dev_struct_instances
             tst_sentence_variables.append(Variable(torch.LongTensor([ x[1] for x in instance[3]]), volatile=True))
             for target in instance[4]:
                 if len(target) == 0:
-                    tst_target_variables.append(None)
+                    tst_target_variable.append(None)
                 else:
-                    tst_target_variables.append(Variable(torch.LongTensor([ x[1] for x in target]), volatile=True))
+                    tst_target_variable.append(Variable(torch.LongTensor([ x[1] for x in target]), volatile=True))
         tst_sentence_variables.append(tst_sentence_variable)
+	tst_target_variables.append(tst_target_variable)
 
     for instance in tst_instances:
         tst_gold_lists = []
@@ -487,7 +496,7 @@ def trainIters(trn_instances, dev_instances, tst_instances, dev_struct_instances
         if idx == len(trn_instances):
             idx = 0       
 
-        loss = train(sentence_variables[idx][:3], sentence_variables[4], target_variables[idx], gold_variables[idx], encoder, s_encoder, decoder, encoder_optimizer, s_encoder_optimizer, decoder_optimizer, criterion)
+        loss = train(sentence_variables[idx][:3], sentence_variables[idx][3], target_variables[idx], gold_variables[idx], encoder, s_encoder, decoder, encoder_optimizer, s_encoder_optimizer, decoder_optimizer, criterion)
         print_loss_total += loss
 
         if iter % print_every == 0:
@@ -503,7 +512,7 @@ def trainIters(trn_instances, dev_instances, tst_instances, dev_struct_instances
                 if use_cuda:
                     torch.cuda.empty_cache()
                 
-                dev_loss += train(dev_sentence_variables[dev_idx][:3], dev_sentence_variables[4], dev_target_variables[dev_idx], dev_gold_variables[dev_idx], encoder, s_encoder, decoder, encoder_optimizer, s_encoder_optimizer, decoder_optimizer, criterion, back_prop=False)
+                dev_loss += train(dev_sentence_variables[dev_idx][:3], dev_sentence_variables[idx][3], dev_target_variables[dev_idx], dev_gold_variables[dev_idx], encoder, s_encoder, decoder, encoder_optimizer, s_encoder_optimizer, decoder_optimizer, criterion, back_prop=False)
                 dev_idx += 1
             print('dev loss %.10f' % (dev_loss/len(dev_instances)))
             evaluate(dev_sentence_variables, dev_pred_struct_variables, dev_target_variables, encoder, s_encoder, decoder, dev_out_dir+str(int(iter/evaluate_every))+".drs")
@@ -517,7 +526,7 @@ def evaluate(sentence_variables, pred_struct_variables, target_variables, encode
         
         tokens = decode(sentence_variables[idx][:3], pred_struct_variables[idx], target_variables[idx], encoder, s_encoder, decoder)
 
-        structs = sentence_variables[idx][4].view(-1).tolist()
+        structs = pred_struct_variables[idx].view(-1).data.tolist()
 
         p = 0
         output = []
@@ -544,7 +553,7 @@ def evaluate(sentence_variables, pred_struct_variables, target_variables, encode
 # main
 
 from utils import readfile
-from utils import data2instance_structure
+from utils import data2instance_structure_relation
 from utils import readpretrain
 from utils import readstructure
 from utils import structure2instance
@@ -556,14 +565,14 @@ dev_file = "dev.input"
 tst_file = "test.input"
 pretrain_file = "sskip.100.vectors"
 tag_info_file = "tag.info"
-trn_file = "train.input.part"
-dev_file = "dev.input.part"
-tst_file = "test.input.part"
-pretrain_file = "sskip.100.vectors.part"
+#trn_file = "train.input.part"
+#dev_file = "dev.input.part"
+#tst_file = "test.input.part"
+#pretrain_file = "sskip.100.vectors.part"
 dev_struct_file = "dev.struct"
 tst_struct_file = "test.struct"
-dev_struct_file = "dev.struct.part"
-tst_struct_file = "test.struct.part"
+#dev_struct_file = "dev.struct.part"
+#tst_struct_file = "test.struct.part"
 UNK = "<UNK>"
 
 trn_data = readfile(trn_file)
@@ -627,12 +636,12 @@ print "trn size: " + str(len(trn_instances))
 ###########################################################
 # prepare development instance
 dev_instances = data2instance_structure_relation(dev_data, [(word_to_ix,0), (pretrain_to_ix,0), (lemma_to_ix,0), tags_info])
-dev_struct_instances = structure2instances(dev_struct_data, tags_info)
+dev_struct_instances = structure2instance(dev_struct_data, tags_info)
 print "dev size: " + str(len(dev_instances))
 ###########################################################
 # prepare test instance
 tst_instances = data2instance_structure_relation(tst_data, [(word_to_ix,0), (pretrain_to_ix,0), (lemma_to_ix,0), tags_info])
-tst_struct_instances = structure2instances(tst_struct_data, tags_info)
+tst_struct_instances = structure2instance(tst_struct_data, tags_info)
 print "tst size: " + str(len(tst_instances))
 
 print "GPU", use_cuda

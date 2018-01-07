@@ -141,18 +141,26 @@ def data2instance_structure_relation(trn_data, ixes):
 			else:
 				relation += 1
 
+		assert len(instances[-1][-1]) != 0
+
 		instances[-1].append([])
 		stack = []
 		pointer = 0
+		#print "####"
 		for item in one[3]:
 			type, idx = ixes[3].type(item)
+			#print "==="
+			#print "stack:",stack
+			#print "type, idx", type, idx
+			#print "pointer",pointer
+			#print "item", item
 			if type == -2:
 				if idx == 4:
 					if stack[-1][0] >= 7 and stack[-1][0] <= 12:
 						pass
 					elif stack[-1][0] >= ixes[3].k_rel_start and stack[-1][0] < ixes[3].k_tag_start:
 						pass
-					elif stack[-1][0] == 5 and stack[-1][0] == 6:
+					elif stack[-1][0] == 5 or stack[-1][0] == 6:
 						pass
 					else:
 						instances[-1][-1][stack[-2][1]].append([stack[-1][1], stack[-1][0]])
@@ -161,7 +169,7 @@ def data2instance_structure_relation(trn_data, ixes):
 					stack.append([idx, pointer])
 					instances[-1][-1].append([])
 					pointer += 1
-				elif idx == 13 or idx == 14 or idx == 15 or (idx >= ixes[3].global_start and idx < ixes[3].k_rel_start):
+				elif idx >= 7 and idx < ixes[3].k_tag_start:
 					stack.append([idx, -2, -1])
 			else:
 				type = one[2].index(item[:-1])
