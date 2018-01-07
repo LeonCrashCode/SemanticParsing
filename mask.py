@@ -770,10 +770,10 @@ class RelationMask:
 	def get_all_mask(self, input_size, least):
 		relations = self._get_relations()
 		res = []
-		for i in range(input_size):
+		for i in range(input_size+1):
 			res.append(relations)
 		if least:
-			res[1][1] = self.mask # next of condition
+			res[0][1] = self.mask # next of condition
 		return res
 	def get_one_mask(self, least):
 		relations = self._get_relations()
