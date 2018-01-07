@@ -742,5 +742,50 @@ class OuterMask:
 	def _get_ones(self, size):
 		return [self.need for i in range(size)]
 
+class RelationMask:
+	#sdrs should have at least two k(), at least one relation, and the relation should follow k()
+	#drs should have at least anything, except variables.
+	#not, nec, pos should have and only have one drs or sdrs
+	#imp, or, duplex should have and only have two drs or sdrs
+	#timex should be timex(variables, TIME_NUMBER)
+	#card should be card(variables, CARD_NUMBER)
+	#k(, p( should have and only have one drs or sdrs
+	#variable constrains
+	def __init__(self, tags_info, encoder_input_size=0):
+		self.tags_info = tags_info
+		self.mask = 0
+		self.need = 1
+		
+		self.reset(encoder_input_size)
+	def reset(self, encoder_input_size):
+		self.encoder_input_size = encoder_input_size
+
+	def _get_relations(self):
+		res = self._get_zeros(self.tags_info.tag_size) + self._get_ones(self.encoder_input_size)
+		idx = 13
+		while idx < k_rel_start:
+			res[idx] = self.need
+			idx += 1
+
+	def get_all_mask(self, input_size, least):
+		relations = self._get_relations()
+		res = []
+		for i in range(input_size):
+			res.append(relations)
+		if least:
+			res[1][1] = self.mask # next of condition
+
+	def get_one_mask(self, least):
+		relations = self._get_relations()
+		if least:
+			relations[1] = self.mask
+		return relations
+	
+	def _get_zeros(self, size):
+		return [self.mask for i in range(size)]
+
+	def _get_ones(self, size):
+		return [self.need for i in range(size)]
+
 
 

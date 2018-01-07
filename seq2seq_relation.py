@@ -11,7 +11,7 @@ import torch.nn.functional as F
 import os
 import sys
 
-from mask import OuterMask
+from mask import RelationMask
 
 use_cuda = torch.cuda.is_available()
 if use_cuda:
@@ -139,7 +139,8 @@ class AttnDecoderRNN(nn.Module):
             condition = self.condition2input(condition).view(1,1,-1)
             condition = self.dropout(condition)
 
-	    embedded = torch.cat((condition, embedded), 0)
+
+            embedded = torch.cat((condition, embedded), 0)
             output, hidden = self.lstm(embedded, hidden)
             
             selective_score = torch.bmm(torch.bmm(output.transpose(0,1), self.selective_matrix), encoder_output.transpose(0,1).transpose(1,2)).view(output.size(0), -1)
@@ -152,7 +153,13 @@ class AttnDecoderRNN(nn.Module):
 
             total_score = torch.cat((global_score, selective_score), 1)
 
-            output = F.log_softmax(total_score, 1)
+            mask = mask_pool.get_all_mask(total_score.size(0), least)
+
+            mask_variable = Variable(torch.FloatTensor(mask), requires_grad = False)
+            if use_cuda:
+                mask_variable = mask_variable.cuda(device)
+
+            output = F.log_softmax(total_score + (mask_variable - 1) *1e10, 1)
 
             return output, hidden
         else:
@@ -163,6 +170,13 @@ class AttnDecoderRNN(nn.Module):
             output, hidden = self.lstm(condition, hidden)
 
             rel = 0
+
+            mask_variable_true = Variable(torch.FloatTensor(mask_pool.get_one_mask(True)), requires_grad = False)
+            mask_variable_false = Variable(torch.FloatTensor(mask_pool.get_one_mask(False)), requires_grad = False)
+            if use_cuda:
+                mask_variable_true = mask_variable_true.cuda(device)
+                mask_variable_false = mask_variable_false.cuda(device)
+
             while True:
                 embedded = self.tag_embeds(input).view(1, 1, -1)
                 output, hidden = self.lstm(embedded, hidden)
@@ -177,16 +191,11 @@ class AttnDecoderRNN(nn.Module):
 
                 total_score = torch.cat((global_score, selective_score), 1)
 
-		if least:
-		    mask = [ 1 for i in range(total_score.size(1))]
-		    mask[4] = 0
-		    mask_variable = Variable(torch.FloatTensor(mask), requires_grad = False)
-		    if use_cuda:
-			mask_variable = mask_variable.cuda(device)
-                    output = total_score + (mask_variable-1) * 1e10
-		    least = False
-	   	else:
-		    output = total_score
+                if least:
+                    output = total_score + (mask_variable_true - 1) * 1e10
+                    least = False
+                else:
+                    output = total_score + (mask_variable_false - 1) * 1e10
 
                 _, input = torch.max(output,1)
                 idx = input.view(-1).data.tolist()[0]
@@ -227,6 +236,8 @@ def train(sentence_variable, struct_variable, target_variables, gold_variables, 
 
     decoder_hidden = (torch.cat((encoder_hidden[0][-2], encoder_hidden[0][-1]), 1).unsqueeze(0),torch.cat((encoder_hidden[1][-2], encoder_hidden[1][-1]), 1).unsqueeze(0))
 
+
+    decoder.mask_pool.reset(sentence_variable[0].size(0))
     structs = struct_variable.view(-1).data.tolist()
     p = 0
     total_rel = 0
@@ -236,12 +247,12 @@ def train(sentence_variable, struct_variable, target_variables, gold_variables, 
             if back_prop == False:
                 decoder_input.volatile=True
             decoder_input = decoder_input.cuda(device) if use_cuda else decoder_input
-	    if torch.is_tensor(target_variables[p]):
+            if torch.is_tensor(target_variables[p]):
                 decoder_input = torch.cat((decoder_input, target_variables[p]))
 
-	    least = False
-	    if structs[i] == 5 or (structs[i] == 6 and structs[i+1] == 4):
-		least = True
+            least = False
+            if structs[i] == 5 or (structs[i] == 6 and structs[i+1] == 4):
+                least = True
             decoder_output, decoder_hidden = decoder(sentence_variable, [s_encoder_output[i], decoder_input], decoder_hidden, encoder_output, total_rel, least, train=True) 
 
             gold_variable = Variable(torch.LongTensor([decoder.tags_info.tag_to_ix[EOS]]))
@@ -551,7 +562,7 @@ def evaluate(sentence_variables, pred_struct_variables, target_variables, encode
 
         p = 0
         output = []
-	print tokens
+        print tokens
         for i in range(len(structs)):
             output.append(decoder.tags_info.ix_to_tag[structs[i]])
             if structs[i] == 5 or structs[i] == 6:
@@ -614,7 +625,7 @@ for sentence, _, lemmas, tags in trn_data:
 tags_info = Tag(tag_info_file, ix_to_lemma)
 SOS = tags_info.SOS
 EOS = tags_info.EOS
-mask_pool = OuterMask(tags_info)
+mask_pool = RelationMask(tags_info)
 ##############################################
 ##
 #mask_info = Mask(tags)
