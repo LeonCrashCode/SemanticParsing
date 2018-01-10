@@ -58,21 +58,22 @@ def process(tokens):
 			#	variables.add(tokens[i+1])
 			tuples.append([get_b(stack), "TIMEX", "c"+str(current_c)])
 			#tuples.append(["c"+str(current_c), "ARG1", tokens[i+1].lower()])
-			if tokens[i+2] != ")":
+			if i+2 < len(tokens) and tokens[i+2] != ")":
 				if tokens[i+2] == "TIME_NUMBER":
 					#tuples.append(["c"+str(current_c), "ARG2", '"'+tokens[i+2]+str(time_num)+'"'])
 					time_num += 1
 				elif tokens[i+2] == "CARD_NUMBER":
 					#tuples.append(["c"+str(current_c), "ARG2", '"'+tokens[i+2]+str(card_num)+'"'])
 					card_num += 1
-				else:
-					assert False
 			current_c += 1
-
-			if tokens[i+2] != ")":
-				i += 4
-			else:
-				i += 3
+			if i+1 < len(tokens) and tokens[i+1] == ")":
+                                i += 2
+                        elif i + 2 < len(tokens) and tokens[i+2] == ")":
+                                i += 3
+                        elif i + 3 < len(tokens) and tokens[i+3] == ")":
+                                i += 4
+                        else:
+                                assert False
 		elif tok == ")":
 			tmp = []
 			while stack[-1][0] == "-":
@@ -110,17 +111,21 @@ def process(tokens):
 			#	variables.add(tokens[i+1])
 			tuples.append([get_b(stack), tok[:-1], "c"+str(current_c)])
 			#tuples.append(["c"+str(current_c), "ARG1", tokens[i+1].lower()])
-			if tokens[i+2] != ")":
+			if i + 2 < len(tokens) and tokens[i+2] != ")":
 				#if tokens[i+2] not in variables:
 					#tuples.append([get_b(stack), "REF", tokens[i+2].lower()])
 					#variables.add(tokens[i+2])
 				#tuples.append(["c"+str(current_c), "ARG2", tokens[i+2].lower()])
 				pass
 			current_c += 1
-			if tokens[i+2] != ")":
-				i += 4
-			else:
-				i += 3
+			if i+1 < len(tokens) and tokens[i+1] == ")":
+                                i += 2
+                        elif i + 2 < len(tokens) and tokens[i+2] == ")":
+                                i += 3
+                        elif i + 3 < len(tokens) and tokens[i+3] == ")":
+                                i += 4
+                        else:
+                                assert False
 	assert len(tuples)!=0
 	for item in tuples:
 		print " ".join(item)

@@ -655,8 +655,9 @@ class OuterMask:
 		re = self._get_zeros(self.tags_info.tag_size) + self._get_zeros(self.encoder_input_size)
 		re[self.tags_info.tag_to_ix[self.tags_info.reduce]] = self.need
 		if self.relation_count <= 40:
-			idx = self.tags_info.p_rel_start
-			re[idx] = self.need
+			if self.p <= self.tags_info.MAX_PV:
+				idx = self.tags_info.p_rel_start
+				re[idx] = self.need
 			re[7] = self.need
 			re[8] = self.need
 			re[9] = self.need
@@ -762,16 +763,16 @@ class RelationMask:
 
 	def _get_relations(self):
 		res = self._get_zeros(self.tags_info.tag_size) + self._get_ones(self.encoder_input_size)
+		res[1] = self.need
 		idx = 13
 		while idx < self.tags_info.k_rel_start:
 			res[idx] = self.need
 			idx += 1
 		return res
 	def get_all_mask(self, input_size, least):
-		relations = self._get_relations()
 		res = []
 		for i in range(input_size+1):
-			res.append(relations)
+			res.append(self._get_relations())
 		if least:
 			res[0][1] = self.mask # next of condition
 		return res
