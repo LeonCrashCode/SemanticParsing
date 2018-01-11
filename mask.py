@@ -788,5 +788,193 @@ class RelationMask:
 	def _get_ones(self, size):
 		return [self.need for i in range(size)]
 
+class VariableMask:
+	#sdrs should have at least two k(), at least one relation, and the relation should follow k()
+	#drs should have at least anything, except variables.
+	#not, nec, pos should have and only have one drs or sdrs
+	#imp, or, duplex should have and only have two drs or sdrs
+	#timex should be timex(variables, TIME_NUMBER)
+	#card should be card(variables, CARD_NUMBER)
+	#k(, p( should have and only have one drs or sdrs
+	#variable constrains
+	def __init__(self, tags_info, encoder_input_size=0):
+		self.tags_info = tags_info
+		self.mask = 0
+		self.need = 1
+
+		self.reset(encoder_input_size, tags_info.MAX_PV)
+	def reset(self, encoder_input_size, max_p):
+		self.encoder_input_size = encoder_input_size
+		
+		self.k = 1
+		self.p = 1
+		self.x = 1
+		self.e = 1
+		self.s = 1
+
+		self.stack_ex = []
+		self.stack = []
+		self.stack_drs = []
+
+		self.max_p = max_p
+		self.prev_variable = -1
+		self.pre_prev_variable = -1
+
+	def get_step_mask(self):
+		if self.stack_drs[-1] == 5:
+			return self._get_sdrs_mask()
+		else:
+			return self._get_drs_mask()
+
+	def _get_sdrs_mask(self):
+		#SDRS
+		if prev_variable == -1:
+			re = self._get_zeros(self.tags_info.tag_size)
+			for idx in self.stack_ex[-1]:
+				re[idx] = self.need
+			return re
+		elif prev_prev_variable == -1:
+			re = self._get_zeros(self.tags_info.tag_size)
+			for idx in self.stack_ex[-1]:
+				re[idx] = self.need
+			assert prev_variable != -1
+			re[prev_variable] = self.mask
+			return re
+		else:
+			re = self._get_zeros(self.tags_info.tag_size)
+			re[1] = self.need
+			return re
+
+	def _get_drs_mask(self):
+		if prev_variable == -1:
+			re = self._get_zeros(self.tags_info.tag_size)
+
+			idx = self.tags_info.x_tag_start
+			while idx < self.tags_info.e_tag_start and idx < self.tags_info.x_tag_start + self.x:
+				re[idx] = self.need
+				idx += 1
+			idx = self.tags_info.e_tag_start
+			while idx < self.tags_info.s_tag_start and idx < self.tags_info.e_tag_start + self.e:
+				re[idx] = self.need
+				idx += 1
+
+			idx = self.tags_info.e_tag_start
+			while idx < self.tags_info.tag_size and idx < self.tags_info.s_tag_start + self.s:
+				re[idx] = self.need
+				idx += 1
+
+			idx = self.tags_info.p_tag_start
+			while idx < self.tags_info.p_tag_start + self.max_p and idx < self.tags_info.p_tag_start + self.p:
+				re[idx] = self.need
+				idx += 1
+
+			return re
+		elif prev_prev_variable == -1:
+			re = self._get_zeros(self.tags_info.tag_size)
+			re[1] = self.need
+
+			if self.stack[-1] == 13:
+				re[3] = self.need
+			elif self.stack[-1] == 14:
+				re[2] = self.need
+			else:
+				idx = self.tags_info.x_tag_start
+				while idx < self.tags_info.e_tag_start and idx < self.tags_info.x_tag_start + self.x:
+					re[idx] = self.need
+					idx += 1
+				idx = self.tags_info.e_tag_start
+				while idx < self.tags_info.s_tag_start and idx < self.tags_info.e_tag_start + self.e:
+					re[idx] = self.need
+					idx += 1
+
+				idx = self.tags_info.e_tag_start
+				while idx < self.tags_info.tag_size and idx < self.tags_info.s_tag_start + self.s:
+					re[idx] = self.need
+					idx += 1
+
+				idx = self.tags_info.p_tag_start
+				while idx < self.tags_info.p_tag_start + self.max_p and idx < self.tags_info.p_tag_start + self.p:
+					re[idx] = self.need
+					idx += 1
+
+			if self.stack[-1] == 15:
+				pass
+			else:
+				re[prev_variable] = self.mask
+			return re
+		else:
+			re = self._get_zeros(self.tags_info.tag_size)
+			re[1] = self.need
+			return re
+		
+	def update(self, ix):
+		if ix < self.tags_info.tag_size:
+			if ix >= 5 and ix < self.tags_info.k_rel_start
+				self.stack.append(ix)
+				if ix == 5:
+					self.stack_ex.append([])
+					self.stack_drs.append(ix)
+				elif ix == 6:
+					self.stack_drs.append(ix)
+				prev_prev_variable = prev_variable
+				prev_variable = -1
+			elif ix >= self.tags_info.k_rel_start and ix < self.tags_info.p_rel_start:
+				self.stack_ex[-1].append(ix)
+				prev_prev_variable = prev_variable
+				prev_variable = -1
+
+			elif ix >= self.tags_info.p_rel_start and ix < self.tags_info.k_tag_start:
+				self.p += 1
+				prev_prev_variable = prev_variable
+				prev_variable = -1
+			elif ix == 4:
+				if self.stack[-1] == 5:
+					self.stack_ex.pop()
+					self.stack_drs.pop()
+				elif self.stack[-1] == 6:
+					self.stack_drs.pop()
+				self.stack.pop()
+				prev_prev_variable = prev_variable
+				prev_variable = -1
+			else:
+
+				if ix >= self.tags_info.k_tag_start and ix < self.tags_info.p_tag_start:
+					assert self.k >= ix - self.tags_info.k_tag_start + 1
+					if self.k == ix - self.tags_info.k_tag_start + 1:
+						self.k += 1
+				elif ix >= self.tags_info.p_tag_start and ix < self.tags_info.x_tag_start:
+					assert self.p >= ix - self.tags_info.p_tag_start + 1
+					if self.p == ix - self.tags_info.p_tag_start + 1:
+						self.p += 1
+				elif ix >= self.tags_info.x_tag_start and ix < self.tags_info.e_tag_start:
+					assert self.x >= ix - self.tags_info.x_tag_start + 1
+					if self.x == ix - self.tags_info.x_tag_start + 1:
+						self.x += 1
+				elif ix >= self.tags_info.e_tag_start and ix < self.tags_info.s_tag_start:
+					assert self.e >= ix - self.tags_info.e_tag_start + 1
+					if self.e == ix - self.tags_info.e_tag_start + 1:
+						self.e += 1
+				elif ix >= self.tags_info.s_tag_start and ix < self.tags_info.tag_size:
+					assert self.s >= ix - self.tags_info.s_tag_start + 1
+					if self.s == ix - self.tags_info.s_tag_start + 1:
+						self.s += 1
+				prev_prev_variable = prev_variable
+				prev_variable = ix
+
+		else:
+			self.stack.append(ix)
+			prev_prev_variable = prev_variable
+			prev_variable = -1
+
+	def _print_state(self):
+		print "stack", self.stack
+		print "stack_ex", self.stack_ex
+		print "drs_stack", self.stack_drs
+		print "kpxes", self.k, self.p, self.x, self.e, self.s
+	def _get_zeros(self, size):
+		return [self.mask for i in range(size)]
+
+	def _get_ones(self, size):
+		return [self.need for i in range(size)]
 
 

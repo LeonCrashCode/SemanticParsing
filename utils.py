@@ -28,7 +28,34 @@ def structure2instance(trn_data, ix):
 		instances.append([])
 		for item in one:
 			instances[-1].append(ix.type(item))
-			assert instances[-1][-1][0] == -2
+			assert instances[-1][-1][-1] == -2
+	return instances
+
+def readstructure_relation(filename):
+	data = []
+	with open(filename, "r") as r:
+		while True:
+			l1 = r.readline().strip()
+			if l1 == "":
+				break
+			data.append(l1.split())
+	return data
+
+def structure_relation2instance(trn_data, ix, ix2):
+	instances = []
+	assert len(trn_data) == len(trn_data2) and len(trn_data) == len(trn_instance2)
+	for i in range(len(trn_data)):
+		one = trn_data[i]
+		lemmas = trn_data2[i][2]
+		instances.append([])
+		for item in one:
+			type, idx = ix.type(item)
+			if type == -2:
+				instances[-1].append(idx)
+			else:
+				idx = ix2[item[:-1]] + ix.tag_size
+				assert idx >= 0
+				instances[-1].append(idx)
 	return instances
 	
 def readpretrain(filename):
@@ -177,6 +204,52 @@ def data2instance_structure_relation(trn_data, ixes):
 				assert type != -1 and idx != -1, "unrecogized local relation"
 				stack.append([idx, type, -1])
 
+	return instances
+
+def data2instance_structure_relation_variable(trn_data, ixes):
+	instances = []
+	for one in trn_data:
+		instances.append([])
+		## words
+		instances[-1].append(torch.LongTensor([get_from_ix(w, ixes[0][0], ixes[0][1]) for w in one[0]]))
+		instances[-1].append(torch.LongTensor([get_from_ix(w, ixes[1][0], ixes[1][1]) for w in one[1]]))
+		instances[-1].append(torch.LongTensor([get_from_ix(w, ixes[2][0], ixes[2][1]) for w in one[2]]))
+
+		instances[-1].append([])
+
+		for item in one[3]:
+			type, idx = ixes[3].type(item)
+			if type == -2 and idx >= ixes[3].k_tag_start and idx < ixes[3].tag_size: #variable
+				pass
+			elif type == -2 and (idx == 2 or idx == 3): # CARD_NUMBER and TIME_NUMBER
+				pass
+			else:
+				if type == -2:
+					instances[-1][-1].append(idx)
+				else:
+					type = one[2].index(item[:-1])
+					idx = instances[-1][2].tolist()[type] + ixes[3].tag_size
+					assert type != -1 and idx != -1, "unrecogized local relation"
+					instances[-1][-1].append(idx)
+
+		assert len(instances[-1][-1]) != 0
+
+		instances[-1].append([])
+		#print "####"
+		for item in one[3]:
+			type, idx = ixes[3].type(item)
+			#print "==="
+			#print "stack:",stack
+			#print "type, idx", type, idx
+			#print "pointer",pointer
+			#print "item", item
+			if type == -2 and idx >= ixes[3].k_tag_start and idx < ixes[3].tag_size: #variable
+				instances[-1][-1][-1].append(idx)
+			elif type == -2 and (idx == 2 or idx == 3): # CARD_NUMBER and TIME_NUMBER
+				instances[-1][-1][-1].append(idx)
+			else:
+				assert len(instances[-1][-1][-1]) <= 2
+				instances[-1][-1].append([])
 	return instances
 
 def data2instance_orig(trn_data, ixes):
