@@ -337,6 +337,7 @@ def trainIters(trn_instances, dev_instances, tst_instances, dev_struct_rel_insta
     mask_variables = []
 
     for instance in trn_instances:
+	#print len(sentence_variables)
         sentence_variable = []
         mask_variable = []
         if use_cuda:
@@ -348,7 +349,7 @@ def trainIters(trn_instances, dev_instances, tst_instances, dev_struct_rel_insta
             all_variables = []
             for i in range(len(instance[3])):
                 idx = instance[3][i]
-                if (idx >= decoder.tags_info.global_start and idx < decoder.tags_info.k_rel_start) or idx > decoder.tags_info.tag_size:
+                if (idx >= 13 and idx < decoder.tags_info.k_rel_start) or idx >= decoder.tags_info.tag_size:
                     all_variables = all_variables + instance[4][p]
                     all_variables.append(1)
                     p += 1
@@ -363,7 +364,7 @@ def trainIters(trn_instances, dev_instances, tst_instances, dev_struct_rel_insta
             all_variables = []
             for i in range(len(instance[3])):
                 idx = instance[3][i]
-                if (idx >= decoder.tags_info.global_start and idx < decoder.tags_info.k_rel_start) or idx > decoder.tags_info.tag_size:
+                if (idx >= 13 and idx < decoder.tags_info.k_rel_start) or idx >= decoder.tags_info.tag_size:
                     all_variables = all_variables + instance[4][p]
                     all_variables.append(1)
                     p += 1
@@ -378,14 +379,18 @@ def trainIters(trn_instances, dev_instances, tst_instances, dev_struct_rel_insta
         mask = []
         while i < len(instance[3]):
             idx = instance[3][i]
-            if (idx >= decoder.tags_info.global_start and idx < decoder.tags_info.k_rel_start) or idx > decoder.tags_info.tag_size:
-                for idxx in instance[4][p]:
+	    #print idx
+	    decoder.mask_pool.update(idx)
+	    #decoder.mask_pool._print_state()
+            if (idx >= 13 and idx < decoder.tags_info.k_rel_start) or idx >= decoder.tags_info.tag_size:
+		for idxx in instance[4][p]:
+		    #print idxx
                     mask.append(decoder.mask_pool.get_step_mask())
                     decoder.mask_pool.update(idxx)
+		    assert mask[-1][idxx] == decoder.mask_pool.need
+		    #decoder.mask_pool._print_state()
                 mask.append(decoder.mask_pool.get_step_mask())
                 p += 1
-            else:
-                decoder.mask_pool.update(idx)
             i += 1
         assert p == len(instance[4])
         if use_cuda:
@@ -414,12 +419,11 @@ def trainIters(trn_instances, dev_instances, tst_instances, dev_struct_rel_insta
             all_variables = []
             for i in range(len(instance[3])):
                 idx = instance[3][i]
-                if (idx >= decoder.tags_info.global_start and idx < decoder.tags_info.k_rel_start) or idx > decoder.tags_info.tag_size:
+                if (idx >= 13 and idx < decoder.tags_info.k_rel_start) or idx >= decoder.tags_info.tag_size:
                     all_variables = all_variables + instance[4][p]
                     all_variables.append(1)
                     p += 1
             dev_target_variables.append(Variable(torch.LongTensor(all_variables)).cuda(device))
-            
             assert p == len(instance[4])    
         else:
             dev_sentence_variable.append(Variable(instance[0], volatile=True))
@@ -430,7 +434,7 @@ def trainIters(trn_instances, dev_instances, tst_instances, dev_struct_rel_insta
             all_variables = []
             for i in range(len(instance[3])):
                 idx = instance[3][i]
-                if (idx >= decoder.tags_info.global_start and idx < decoder.tags_info.k_rel_start) or idx > decoder.tags_info.tag_size:
+                if (idx >= 13 and idx < decoder.tags_info.k_rel_start) or idx >= decoder.tags_info.tag_size:
                     all_variables = all_variables + instance[4][p]
                     all_variables.append(1)
                     p += 1
@@ -446,14 +450,14 @@ def trainIters(trn_instances, dev_instances, tst_instances, dev_struct_rel_insta
         dev_mask = []
         while i < len(instance[3]):
             idx = instance[3][i]
-            if (idx >= decoder.tags_info.global_start and idx < decoder.tags_info.k_rel_start) or idx > decoder.tags_info.tag_size:
+	    decoder.mask_pool.update(idx)
+            if (idx >= 13 and idx < decoder.tags_info.k_rel_start) or idx >= decoder.tags_info.tag_size:
                 for idxx in instance[4][p]:
                     dev_mask.append(decoder.mask_pool.get_step_mask())
                     decoder.mask_pool.update(idxx)
+		    assert dev_mask[-1][idxx] == decoder.mask_pool.need
                 dev_mask.append(decoder.mask_pool.get_step_mask())
                 p += 1
-            else:
-                decoder.mask_pool.update(idx)
             i += 1
         assert p == len(instance[4])
         if use_cuda:
@@ -563,10 +567,10 @@ def evaluate(sentence_variables, pred_struct_variables, encoder, s_encoder, deco
 # main
 
 from utils import readfile
-from utils import data2instance_structure_relation
+from utils import data2instance_structure_relation_variable
 from utils import readpretrain
-from utils import readstructure
-from utils import structure2instance
+from utils import readstructure_relation
+from utils import structure_relation2instance
 from tag import Tag
 #from mask import Mask
 
@@ -575,14 +579,14 @@ dev_file = "dev.input"
 tst_file = "test.input"
 pretrain_file = "sskip.100.vectors"
 tag_info_file = "tag.info"
-#trn_file = "train.input.part"
-#dev_file = "dev.input.part"
-#tst_file = "test.input.part"
-#pretrain_file = "sskip.100.vectors.part"
+trn_file = "train.input.part"
+dev_file = "dev.input.part"
+tst_file = "test.input.part"
+pretrain_file = "sskip.100.vectors.part"
 dev_struct_rel_file = "dev.struct.rel"
 tst_struct_rel_file = "test.struct.rel"
-#dev_struct_file = "dev.struct.part"
-#tst_struct_file = "test.struct.part"
+dev_struct_rel_file = "dev.struct.rel.part"
+tst_struct_rel_file = "test.struct.rel.part"
 UNK = "<UNK>"
 
 trn_data = readfile(trn_file)
@@ -641,17 +645,17 @@ structure_encoder = SimpleRNN(tags_info.all_tag_size, TAG_DIM, ENCODER_HIDDEN_DI
 
 ###########################################################
 # prepare training instance
-trn_instances = data2instance_structure_relation(trn_data, [(word_to_ix,0), (pretrain_to_ix,0), (lemma_to_ix,0), tags_info])
+trn_instances = data2instance_structure_relation_variable(trn_data, [(word_to_ix,0), (pretrain_to_ix,0), (lemma_to_ix,0), tags_info])
 print "trn size: " + str(len(trn_instances))
 ###########################################################
 # prepare development instance
-dev_instances = data2instance_structure_relation(dev_data, [(word_to_ix,0), (pretrain_to_ix,0), (lemma_to_ix,0), tags_info])
-dev_struct_rel_instances = structure_relation2instance(dev_struct_rel_data, tags_info)
+dev_instances = data2instance_structure_relation_variable(dev_data, [(word_to_ix,0), (pretrain_to_ix,0), (lemma_to_ix,0), tags_info])
+dev_struct_rel_instances = structure_relation2instance(dev_struct_rel_data, tags_info, lemma_to_ix)
 print "dev size: " + str(len(dev_instances))
 ###########################################################
 # prepare test instance
-tst_instances = data2instance_structure_relation(tst_data, [(word_to_ix,0), (pretrain_to_ix,0), (lemma_to_ix,0), tags_info])
-tst_struct_rel_instances = structure_relation2instance(tst_struct_rel_data, tags_info)
+tst_instances = data2instance_structure_relation_variable(tst_data, [(word_to_ix,0), (pretrain_to_ix,0), (lemma_to_ix,0), tags_info])
+tst_struct_rel_instances = structure_relation2instance(tst_struct_rel_data, tags_info, lemma_to_ix)
 print "tst size: " + str(len(tst_instances))
 
 print "GPU", use_cuda

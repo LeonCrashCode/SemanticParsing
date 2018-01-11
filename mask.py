@@ -802,12 +802,12 @@ class VariableMask:
 		self.mask = 0
 		self.need = 1
 
-		self.reset(encoder_input_size, tags_info.MAX_PV)
-	def reset(self, encoder_input_size, max_p):
+		self.reset(encoder_input_size)
+	def reset(self, encoder_input_size):
 		self.encoder_input_size = encoder_input_size
 		
-		self.k = 1
-		self.p = 1
+		#self.k = 1
+		#self.p = 1
 		self.x = 1
 		self.e = 1
 		self.s = 1
@@ -816,7 +816,6 @@ class VariableMask:
 		self.stack = []
 		self.stack_drs = []
 
-		self.max_p = max_p
 		self.prev_variable = -1
 		self.pre_prev_variable = -1
 
@@ -828,17 +827,17 @@ class VariableMask:
 
 	def _get_sdrs_mask(self):
 		#SDRS
-		if prev_variable == -1:
+		if self.prev_variable == -1:
 			re = self._get_zeros(self.tags_info.tag_size)
 			for idx in self.stack_ex[-1]:
 				re[idx] = self.need
 			return re
-		elif prev_prev_variable == -1:
+		elif self.prev_prev_variable == -1:
 			re = self._get_zeros(self.tags_info.tag_size)
 			for idx in self.stack_ex[-1]:
 				re[idx] = self.need
-			assert prev_variable != -1
-			re[prev_variable] = self.mask
+			assert self.prev_variable != -1
+			re[self.prev_variable] = self.mask
 			return re
 		else:
 			re = self._get_zeros(self.tags_info.tag_size)
@@ -846,7 +845,7 @@ class VariableMask:
 			return re
 
 	def _get_drs_mask(self):
-		if prev_variable == -1:
+		if self.prev_variable == -1:
 			re = self._get_zeros(self.tags_info.tag_size)
 
 			idx = self.tags_info.x_tag_start
@@ -870,7 +869,7 @@ class VariableMask:
 			#	idx += 1
 
 			return re
-		elif prev_prev_variable == -1:
+		elif self.prev_prev_variable == -1:
 			re = self._get_zeros(self.tags_info.tag_size)
 			re[1] = self.need
 
@@ -902,7 +901,7 @@ class VariableMask:
 			if self.stack[-1] == 15:
 				pass
 			else:
-				re[prev_variable] = self.mask
+				re[self.prev_variable] = self.mask
 			return re
 		else:
 			re = self._get_zeros(self.tags_info.tag_size)
@@ -911,24 +910,27 @@ class VariableMask:
 		
 	def update(self, ix):
 		if ix < self.tags_info.tag_size:
-			if ix >= 5 and ix < self.tags_info.k_rel_start
+			if ix >= 5 and ix < self.tags_info.k_rel_start:
 				self.stack.append(ix)
 				if ix == 5:
 					self.stack_ex.append([])
 					self.stack_drs.append(ix)
 				elif ix == 6:
 					self.stack_drs.append(ix)
-				prev_prev_variable = prev_variable
-				prev_variable = -1
+				self.prev_prev_variable = self.prev_variable
+				self.prev_variable = -1
 			elif ix >= self.tags_info.k_rel_start and ix < self.tags_info.p_rel_start:
-				self.stack_ex[-1].append(ix)
-				prev_prev_variable = prev_variable
-				prev_variable = -1
+				self.stack.append(ix)
+				self.stack_ex[-1].append(ix - self.tags_info.k_rel_start + self.tags_info.k_tag_start)
+				#self.k += 1
+				self.prev_prev_variable = self.prev_variable
+				self.prev_variable = -1
 
 			elif ix >= self.tags_info.p_rel_start and ix < self.tags_info.k_tag_start:
-				self.p += 1
-				prev_prev_variable = prev_variable
-				prev_variable = -1
+				self.stack.append(ix)
+				#self.p += 1
+				self.prev_prev_variable = self.prev_variable
+				self.prev_variable = -1
 			elif ix == 4:
 				if self.stack[-1] == 5:
 					self.stack_ex.pop()
@@ -936,18 +938,20 @@ class VariableMask:
 				elif self.stack[-1] == 6:
 					self.stack_drs.pop()
 				self.stack.pop()
-				prev_prev_variable = prev_variable
-				prev_variable = -1
+				self.prev_prev_variable = self.prev_variable
+				self.prev_variable = -1
 			else:
 
 				if ix >= self.tags_info.k_tag_start and ix < self.tags_info.p_tag_start:
-					assert self.k >= ix - self.tags_info.k_tag_start + 1
-					if self.k == ix - self.tags_info.k_tag_start + 1:
-						self.k += 1
+					#assert self.k >= ix - self.tags_info.k_tag_start + 1
+					#if self.k == ix - self.tags_info.k_tag_start + 1:
+					#	self.k += 1
+					pass
 				elif ix >= self.tags_info.p_tag_start and ix < self.tags_info.x_tag_start:
-					assert self.p >= ix - self.tags_info.p_tag_start + 1
-					if self.p == ix - self.tags_info.p_tag_start + 1:
-						self.p += 1
+					#assert self.p >= ix - self.tags_info.p_tag_start + 1
+					#if self.p == ix - self.tags_info.p_tag_start + 1:
+					#	self.p += 1
+					pass
 				elif ix >= self.tags_info.x_tag_start and ix < self.tags_info.e_tag_start:
 					assert self.x >= ix - self.tags_info.x_tag_start + 1
 					if self.x == ix - self.tags_info.x_tag_start + 1:
@@ -960,19 +964,20 @@ class VariableMask:
 					assert self.s >= ix - self.tags_info.s_tag_start + 1
 					if self.s == ix - self.tags_info.s_tag_start + 1:
 						self.s += 1
-				prev_prev_variable = prev_variable
-				prev_variable = ix
+				self.prev_prev_variable = self.prev_variable
+				self.prev_variable = ix
 
 		else:
 			self.stack.append(ix)
-			prev_prev_variable = prev_variable
-			prev_variable = -1
+			self.prev_prev_variable = self.prev_variable
+			self.prev_variable = -1
 
 	def _print_state(self):
 		print "stack", self.stack
 		print "stack_ex", self.stack_ex
-		print "drs_stack", self.stack_drs
-		print "kpxes", self.k, self.p, self.x, self.e, self.s
+		print "stack_drs", self.stack_drs
+#		print "kpxes", self.k, self.p, self.x, self.e, self.s
+		print "xes", self.x, self.e, self.s
 	def _get_zeros(self, size):
 		return [self.mask for i in range(size)]
 

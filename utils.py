@@ -43,10 +43,8 @@ def readstructure_relation(filename):
 
 def structure_relation2instance(trn_data, ix, ix2):
 	instances = []
-	assert len(trn_data) == len(trn_data2) and len(trn_data) == len(trn_instance2)
 	for i in range(len(trn_data)):
 		one = trn_data[i]
-		lemmas = trn_data2[i][2]
 		instances.append([])
 		for item in one:
 			type, idx = ix.type(item)
@@ -239,9 +237,7 @@ def data2instance_structure_relation_variable(trn_data, ixes):
 		for item in one[3]:
 			type, idx = ixes[3].type(item)
 			#print "==="
-			#print "stack:",stack
 			#print "type, idx", type, idx
-			#print "pointer",pointer
 			#print "item", item
 			if type == -2 and idx >= ixes[3].k_tag_start and idx < ixes[3].tag_size: #variable
 				if idx >= ixes[3].p_tag_start and idx < ixes[3].x_tag_start:
@@ -250,9 +246,11 @@ def data2instance_structure_relation_variable(trn_data, ixes):
 					instances[-1][-1][-1].append(idx)
 			elif type == -2 and (idx == 2 or idx == 3): # CARD_NUMBER and TIME_NUMBER
 				instances[-1][-1][-1].append(idx)
-			else:
-				assert len(instances[-1][-1][-1]) <= 2
+			elif type == -1 or (type == -2 and idx >= 13 and idx < ixes[3].k_rel_start):
+				if len(instances[-1][-1]) != 0:
+					assert len(instances[-1][-1][-1]) <= 2 and len(instances[-1][-1][-1]) > 0
 				instances[-1][-1].append([])
+			#print instances[-1][-1]
 	return instances
 
 def data2instance_orig(trn_data, ixes):
