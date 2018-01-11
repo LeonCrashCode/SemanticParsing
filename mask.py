@@ -910,6 +910,8 @@ class VariableMask:
 		
 	def update(self, ix):
 		if ix < self.tags_info.tag_size:
+			if ix == 1:
+				pass
 			if ix >= 5 and ix < self.tags_info.k_rel_start:
 				self.stack.append(ix)
 				if ix == 5:
