@@ -235,11 +235,12 @@ def train(sentence_variable, struct_variable, target_variables, gold_variables, 
                 gold_variable.volatile = True
             gold_variable = gold_variable.cuda(device) if use_cuda else gold_variable
 
-	    #print torch.is_tensor(gold_variables[p])
+            #print torch.is_tensor(gold_variables[p])
             if type(gold_variables[p]) != types.NoneType:
                 gold_variable = torch.cat((gold_variables[p], gold_variable))
-	    loss += criterion(decoder_output, gold_variable)
-	    p += 1
+
+            loss += criterion(decoder_output, gold_variable)
+            p += 1
             target_length += gold_variable.size(0)
     assert p == len(gold_variables) and p == len(target_variables) and p == len(mask_variables)
 

@@ -244,7 +244,10 @@ def data2instance_structure_relation_variable(trn_data, ixes):
 			#print "pointer",pointer
 			#print "item", item
 			if type == -2 and idx >= ixes[3].k_tag_start and idx < ixes[3].tag_size: #variable
-				instances[-1][-1][-1].append(idx)
+				if idx >= ixes[3].p_tag_start and idx < ixes[3].x_tag_start:
+					instances[-1][-1][-1].append(ixes[3].p_tag_start)
+				else:
+					instances[-1][-1][-1].append(idx)
 			elif type == -2 and (idx == 2 or idx == 3): # CARD_NUMBER and TIME_NUMBER
 				instances[-1][-1][-1].append(idx)
 			else:

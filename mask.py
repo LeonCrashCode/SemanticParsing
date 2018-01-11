@@ -858,15 +858,16 @@ class VariableMask:
 				re[idx] = self.need
 				idx += 1
 
-			idx = self.tags_info.e_tag_start
+			idx = self.tags_info.s_tag_start
 			while idx < self.tags_info.tag_size and idx < self.tags_info.s_tag_start + self.s:
 				re[idx] = self.need
 				idx += 1
 
 			idx = self.tags_info.p_tag_start
-			while idx < self.tags_info.p_tag_start + self.max_p and idx < self.tags_info.p_tag_start + self.p:
-				re[idx] = self.need
-				idx += 1
+			re[idx] = self.need
+			#while idx < self.tags_info.p_tag_start + self.max_p and idx < self.tags_info.p_tag_start + self.p:
+			#	re[idx] = self.need
+			#	idx += 1
 
 			return re
 		elif prev_prev_variable == -1:
@@ -887,15 +888,16 @@ class VariableMask:
 					re[idx] = self.need
 					idx += 1
 
-				idx = self.tags_info.e_tag_start
+				idx = self.tags_info.s_tag_start
 				while idx < self.tags_info.tag_size and idx < self.tags_info.s_tag_start + self.s:
 					re[idx] = self.need
 					idx += 1
 
 				idx = self.tags_info.p_tag_start
-				while idx < self.tags_info.p_tag_start + self.max_p and idx < self.tags_info.p_tag_start + self.p:
-					re[idx] = self.need
-					idx += 1
+				re[idx] = self.need
+				#while idx < self.tags_info.p_tag_start + self.max_p and idx < self.tags_info.p_tag_start + self.p:
+				#	re[idx] = self.need
+				#	idx += 1
 
 			if self.stack[-1] == 15:
 				pass
