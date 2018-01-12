@@ -506,7 +506,6 @@ def trainIters(trn_instances, dev_instances, tst_instances, dev_struct_rel_insta
             print('dev loss %.10f' % (dev_loss/len(dev_instances)))
             evaluate(dev_sentence_variables, dev_pred_struct_rel_variables, encoder, s_encoder, decoder, dev_out_dir+str(int(iter/evaluate_every))+".drs")
             evaluate(tst_sentence_variables, tst_pred_struct_rel_variables, encoder, s_encoder, decoder, tst_out_dir+str(int(iter/evaluate_every))+".drs")
-	    exit(1)
 def evaluate(sentence_variables, pred_struct_variables, encoder, s_encoder, decoder, path):
     out = open(path,"w")
     for idx in range(len(sentence_variables)):
@@ -527,7 +526,6 @@ def evaluate(sentence_variables, pred_struct_variables, encoder, s_encoder, deco
             if (structs[i] >= 13 and structs[i] < decoder.tags_info.k_rel_start) or structs[i] >= decoder.tags_info.tag_size:
                 for idx in tokens[p]:
                     output.append(decoder.tags_info.ix_to_tag[idx])
-                output.append(")")
                 p += 1
         assert p == len(tokens)
         out.write(" ".join(output)+"\n")
