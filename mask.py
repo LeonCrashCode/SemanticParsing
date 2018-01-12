@@ -898,7 +898,7 @@ class VariableMask:
 				#	re[idx] = self.need
 				#	idx += 1
 
-			if self.stack[-1] == 15:
+			if self.stack[-1] == 15 or self.prev_variable == self.tags_info.p_tag_start:
 				pass
 			else:
 				re[self.prev_variable] = self.mask
