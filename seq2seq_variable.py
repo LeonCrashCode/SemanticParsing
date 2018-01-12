@@ -125,20 +125,16 @@ class AttnDecoderRNN(nn.Module):
         self.out = nn.Linear(self.feat_dim, self.tag_size)
 
 
-    def forward(self, sentence_variable, inputs, mask_variable, hidden, encoder_output, total_rel, least, train=True):
+    def forward(self, sentence_variable, inputs, mask_variable, hidden, encoder_output, train=True):
 
         if train:
             self.lstm.dropout = self.dropout_p
-            embedded = self.condition2input(condition).view(1, 1,-1)
-            embedded = self.dropout(embedded)
 
             List = []
-            embedded = self.condition2input(inputs[0][0]).view(1, 1, -1)
-            embedded = self.cat((embedded, self.tag_embeds(inputs[0][1]).unsqueeze(1)), 0)
-            for condition, input in inputs[1:]:
+            for condition, input in inputs:
                 List.append(self.condition2input(condition).view(1, 1, -1))
                 List.append(self.tag_embeds(input).unsqueeze(1))
-            embedded = self.cat(List, 0)
+            embedded = torch.cat(List, 0)
             embedded = self.dropout(embedded)
 
             output, hidden = self.lstm(embedded, hidden)
@@ -159,9 +155,8 @@ class AttnDecoderRNN(nn.Module):
             tokens = []
             rel = 0
 
-            embedded = self.condition2input(condition).view(1, 1,-1)
+            embedded = self.condition2input(inputs[0]).view(1, 1,-1)
             while True:
-                
                 output, hidden = self.lstm(embedded, hidden)
 
                 attn_weights = F.softmax(torch.bmm(output, encoder_output.transpose(0,1).transpose(1,2)).view(output.size(0), -1), 1)
@@ -177,8 +172,10 @@ class AttnDecoderRNN(nn.Module):
 
                 total_score = global_score + (mask_variable - 1) * 1e10
 
+		output = total_score
+
                 _, input = torch.max(output, 1)
-                embedded = self.tag_embeds(input).view(1, 1, -1)
+		embedded = self.tag_embeds(input).view(1, 1, -1)
 
                 idx = input.view(-1).data.tolist()[0]
                 assert idx < tags_info.tag_size
@@ -217,9 +214,9 @@ def train(sentence_variable, struct_variable, target_variables, gold_variables, 
 
     decoder_output, decoder_hidden = decoder(sentence_variable, decoder_input, mask_variables, decoder_hidden, encoder_output, train=True) 
 
-    loss += criterion(decoder_output, gold_variable)
+    loss += criterion(decoder_output, gold_variables)
 
-    target_length = gold_variable.size(0)
+    target_length = gold_variables.size(0)
 
     if back_prop:
         loss.backward()
@@ -247,7 +244,7 @@ def decode(sentence_variable, struct_variable, encoder, s_encoder, decoder):
         decoder.mask_pool.update(structs[i])
         if (structs[i] >= 13 and structs[i] < decoder.tags_info.k_rel_start) or structs[i] >= decoder.tags_info.tag_size:
             tokens, decoder_hidden = decoder(sentence_variable, [s_encoder_output[i], None], None, decoder_hidden, encoder_output, train=False)
-            all_tokens.append(tokens.view(-1,2).data.tolist())
+            all_tokens.append(tokens.view(-1).data.tolist())
     return all_tokens
 
 ######################################################################
@@ -370,9 +367,9 @@ def trainIters(trn_instances, dev_instances, tst_instances, dev_struct_rel_insta
             i += 1
         assert p == len(instance[4])
         if use_cuda:
-            mask_variables.append(Variable(torch.LongTensor(mask)).cuda(device))
+            mask_variables.append(Variable(torch.FloatTensor(mask)).cuda(device))
         else:
-            mask_variables.append(Variable(torch.LongTensor(mask)))
+            mask_variables.append(Variable(torch.FloatTensor(mask)))
         
 
 #==================================
@@ -398,7 +395,7 @@ def trainIters(trn_instances, dev_instances, tst_instances, dev_struct_rel_insta
                 if (idx >= 13 and idx < decoder.tags_info.k_rel_start) or idx >= decoder.tags_info.tag_size:
                     all_variables = all_variables + instance[4][p]
                     all_variables.append(1)
-                    target_variable.append(Variable(torch.LongTensor(all_variables)).cuda(device))
+                    dev_target_variable.append(Variable(torch.LongTensor(instance[4][p])).cuda(device))
                     p += 1
             dev_gold_variables.append(Variable(torch.LongTensor(all_variables), requires_grad=False).cuda(device))
             assert p == len(instance[4])    
@@ -414,13 +411,13 @@ def trainIters(trn_instances, dev_instances, tst_instances, dev_struct_rel_insta
                 if (idx >= 13 and idx < decoder.tags_info.k_rel_start) or idx >= decoder.tags_info.tag_size:
                     all_variables = all_variables + instance[4][p]
                     all_variables.append(1)
-                    target_variable.append(Variable(torch.LongTensor(all_variables)))
+                    dev_target_variable.append(Variable(torch.LongTensor(instance[4][p])))
                     p += 1
             dev_gold_variables.append(Variable(torch.LongTensor(all_variables)))
             assert p == len(instance[4])
 
         dev_sentence_variables.append(dev_sentence_variable)
-        dev_gold_variables = dev_target_variables
+        dev_target_variables.append(dev_target_variable)
 
         i = 0
         p = 0
@@ -439,9 +436,9 @@ def trainIters(trn_instances, dev_instances, tst_instances, dev_struct_rel_insta
             i += 1
         assert p == len(instance[4])
         if use_cuda:
-            dev_mask_variables.append(Variable(torch.LongTensor(dev_mask)).cuda(device))
+            dev_mask_variables.append(Variable(torch.FloatTensor(dev_mask)).cuda(device))
         else:
-            dev_mask_variables.append(Variable(torch.LongTensor(dev_mask)))
+            dev_mask_variables.append(Variable(torch.FloatTensor(dev_mask)))
 
 
     for instance in dev_struct_rel_instances:
@@ -509,7 +506,7 @@ def trainIters(trn_instances, dev_instances, tst_instances, dev_struct_rel_insta
             print('dev loss %.10f' % (dev_loss/len(dev_instances)))
             evaluate(dev_sentence_variables, dev_pred_struct_rel_variables, encoder, s_encoder, decoder, dev_out_dir+str(int(iter/evaluate_every))+".drs")
             evaluate(tst_sentence_variables, tst_pred_struct_rel_variables, encoder, s_encoder, decoder, tst_out_dir+str(int(iter/evaluate_every))+".drs")
-
+	    exit(1)
 def evaluate(sentence_variables, pred_struct_variables, encoder, s_encoder, decoder, path):
     out = open(path,"w")
     for idx in range(len(sentence_variables)):
@@ -523,10 +520,13 @@ def evaluate(sentence_variables, pred_struct_variables, encoder, s_encoder, deco
         p = 0
         output = []
         for i in range(len(structs)):
-            output.append(decoder.tags_info.ix_to_tag[structs[i]])
+	    if structs[i] < decoder.tags_info.tag_size:
+		output.append(decoder.tags_info.ix_to_tag[structs[i]])
+	    else:
+		output.append(decoder.tags_info.ix_to_lemma[structs[i] - decoder.tags_info.tag_size])
             if (structs[i] >= 13 and structs[i] < decoder.tags_info.k_rel_start) or structs[i] >= decoder.tags_info.tag_size:
                 for idx in tokens[p]:
-                    output.append(decoder.tags_info.ix_to_tag[tok])
+                    output.append(decoder.tags_info.ix_to_tag[idx])
                 output.append(")")
                 p += 1
         assert p == len(tokens)
@@ -551,14 +551,14 @@ dev_file = "dev.input"
 tst_file = "test.input"
 pretrain_file = "sskip.100.vectors"
 tag_info_file = "tag.info"
-trn_file = "train.input.part"
-dev_file = "dev.input.part"
-tst_file = "test.input.part"
-pretrain_file = "sskip.100.vectors.part"
+#trn_file = "train.input.part"
+#dev_file = "dev.input.part"
+#tst_file = "test.input.part"
+#pretrain_file = "sskip.100.vectors.part"
 dev_struct_rel_file = "dev.struct.rel"
 tst_struct_rel_file = "test.struct.rel"
-dev_struct_rel_file = "dev.struct.rel.part"
-tst_struct_rel_file = "test.struct.rel.part"
+#dev_struct_rel_file = "dev.struct.rel.part"
+#tst_struct_rel_file = "test.struct.rel.part"
 UNK = "<UNK>"
 
 trn_data = readfile(trn_file)
