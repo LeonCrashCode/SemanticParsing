@@ -497,7 +497,7 @@ def trainIters(trn_instances, dev_instances, tst_instances, dev_struct_rel_insta
         if iter % evaluate_every == 0:
             dev_idx = 0
             dev_loss = 0.0
-            torch.save({"iter": iter, "idx":idx,  "encoder":encoder.state_dict(), "decoder":decoder.state_dict(), "encoder_optimizer": encoder_optimizer.state_dict(), "decoder_optimizer": decoder_optimizer.state_dict()}, model_dir+str(int(iter/evaluate_every))+".model")
+            torch.save({"iter": iter, "idx":idx,  "encoder":encoder.state_dict(), "decoder":decoder.state_dict(), "s_encoder": s_encoder.state_dict(), "encoder_optimizer": encoder_optimizer.state_dict(), "decoder_optimizer": decoder_optimizer.state_dict(), "s_encoder_optimizer", s_encoder_optimizer.state_dict()}, model_dir+str(int(iter/evaluate_every))+".model")
             while dev_idx < len(dev_instances):
                 if use_cuda:
                     torch.cuda.empty_cache()

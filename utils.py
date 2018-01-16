@@ -263,6 +263,7 @@ def data2instance_structure_relation_variable2(trn_data, ixes):
 		instances[-1].append(torch.LongTensor([get_from_ix(w, ixes[2][0], ixes[2][1]) for w in one[2]]))
 
 		instances[-1].append([])
+		relation = 0
 		for item in one[3]:
 			type, idx = ixes[3].type(item)
 			if type == -2:
@@ -276,9 +277,9 @@ def data2instance_structure_relation_variable2(trn_data, ixes):
 				elif idx >= 5 and idx <= 12:
 					instances[-1][-1].append(idx)
 				elif idx >= ixes[3].k_rel_start and idx < ixes[3].p_rel_start:
-					instances[-1][-1].append(ixes[3].k_rel_start)
+					instances[-1][-1].append(idx)
 				elif idx >= ixes[3].p_rel_start and idx < ixes[3].k_tag_start:
-					instances[-1][-1].append(ixes[3].p_rel_start)
+					instances[-1][-1].append(idx)
 				elif idx >= 13 and idx < ixes[3].k_rel_start:
 					relation += 1
 			else:
@@ -317,6 +318,24 @@ def data2instance_structure_relation_variable2(trn_data, ixes):
 				idx = instances[-1][2].tolist()[type] + ixes[3].tag_size
 				assert type != -1 and idx != -1, "unrecogized local relation"
 				stack.append([idx, type, -1])
+
+		instances[-1].append([])
+		for item in one[3]:
+			type, idx = ixes[3].type(item)
+			if type == -2 and idx >= ixes[3].k_tag_start and idx < ixes[3].tag_size: #variable
+				pass
+			elif type == -2 and (idx == 2 or idx == 3): # CARD_NUMBER and TIME_NUMBER
+				pass
+			else:
+				if type == -2:
+					instances[-1][-1].append(idx)
+				else:
+					type = one[2].index(item[:-1])
+					idx = instances[-1][2].tolist()[type] + ixes[3].tag_size
+					assert type != -1 and idx != -1, "unrecogized local relation"
+					instances[-1][-1].append(idx)
+
+		assert len(instances[-1][-1]) != 0
 
 		instances[-1].append([])
 		#print "####"
