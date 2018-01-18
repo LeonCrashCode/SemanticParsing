@@ -643,7 +643,6 @@ def trainIters(trn_instances, dev_instances, tst_instances, encoder, decoder, pr
             mask1_variables.append(Variable(torch.FloatTensor(mask1), requires_grad=False))
             mask2_variables.append(Variable(torch.FloatTensor(mask2), requires_grad=False))
             mask3_variables.append(Variable(torch.FloatTensor(mask3), requires_grad=False))
-    exit(1)
 
 #==================================
     dev_sentence_variables = []
@@ -976,5 +975,5 @@ if use_cuda:
     encoder = encoder.cuda(device)
     attn_decoder = attn_decoder.cuda(device)
 
-trainIters(trn_instances, dev_instances, tst_instances, encoder, attn_decoder, print_every=10, evaluate_every=10, learning_rate=0.0005)
+trainIters(trn_instances, dev_instances, tst_instances, encoder, attn_decoder, print_every=1000, evaluate_every=50000, learning_rate=0.0005)
 
