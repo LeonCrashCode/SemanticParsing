@@ -408,18 +408,18 @@ def decode(sentence_variable, encoder, decoder):
     #p_max
     p_max = 0
     for tok in structs:
-        if tok >= decoder.tags_info.p_rel_start and idx < decoder.tags_info.k_tag_start:
+        if tok >= decoder.tags_info.p_rel_start and tok < decoder.tags_info.k_tag_start:
             p_max += 1
     #user_k
     user_k = []
     stack = []
     for tok in structs:
-        if tok == ")":
+        if tok == 4:
             if stack[-1][0] == 5:
                 user_k.append(stack[-1][1])
             stack.pop()
         else:
-            if tok >= decoder.tags_info.k_rel_start and idx < decoder.tags_info.p_rel_start:
+            if tok >= decoder.tags_info.k_rel_start and tok < decoder.tags_info.p_rel_start:
                 stack[-1][1].append(tok - decoder.tags_info.k_rel_start)
             stack.append([tok,[]])
     decoder.var_mask_pool.reset(p_max, k_use=True)
@@ -438,10 +438,10 @@ def decode(sentence_variable, encoder, decoder):
                 user_k_p += 1
 
             for j in range(len(relations[structs_p])):
-                if relations[i][j] == 1: # EOS
+                if relations[structs_p][j] == 1: # EOS
                     continue
-                decoder.var_mask_pool.update(relations[i][j])
-                struct_rel_tokens.append(relations[i][j])
+                decoder.var_mask_pool.update(relations[structs_p][j])
+                struct_rel_tokens.append(relations[structs_p][j])
                 struct_rel_tokens.append(4) # )
                 decoder_output3, decoder_hidden3= decoder(None, hidden_rep2_list[structs_p][j], decoder_hidden3, encoder_output, total_rel=None, least=None, train=False, mask_variable=None, opt=3)
                 var_tokens.append(decoder_output3.view(-1).data.tolist())
