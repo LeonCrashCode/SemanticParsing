@@ -93,7 +93,9 @@ class AttnDecoderRNN(nn.Module):
         self.struct2rel = nn.Linear(self.hidden_dim, self.tag_dim)
         self.rel2var = nn.Linear(self.hidden_dim, self.tag_dim)
 
-        self.lstm = nn.LSTM(self.tag_dim, self.hidden_dim, num_layers= self.n_layers)
+        self.struct_lstm = nn.LSTM(self.tag_dim, self.hidden_dim, num_layers= self.n_layers)
+        self.rel_lstm = nn.LSTM(self.tag_dim, self.hidden_dim, num_layers= self.n_layers)
+        self.var_lstm = nn.LSTM(self.tag_dim, self.hidden_dim, num_layers= self.n_layers)
 
         self.feat = nn.Linear(self.hidden_dim + self.tag_dim, self.feat_dim)
         self.feat_tanh = nn.Tanh()
@@ -118,11 +120,11 @@ class AttnDecoderRNN(nn.Module):
             assert False, "unrecognized option"
     def forward_1(self, input, hidden, encoder_output, train, mask_variable):
         if train:
-            self.lstm.dropout = self.dropout_p
+            self.struct_lstm.dropout = self.dropout_p
             embedded = self.tag_embeds(input).unsqueeze(1)
             embedded = self.dropout(embedded)
 
-            output, hidden = self.lstm(embedded, hidden)
+            output, hidden = self.struct_lstm(embedded, hidden)
             
             attn_weights = F.softmax(torch.bmm(output.transpose(0,1), encoder_output.transpose(0,1).transpose(1,2)).view(output.size(0),-1), 1)
             attn_hiddens = torch.bmm(attn_weights.unsqueeze(0),encoder_output.transpose(0,1))
@@ -135,7 +137,7 @@ class AttnDecoderRNN(nn.Module):
             return log_softmax_output, output
         else:
 
-            self.lstm.dropout = 0.0
+            self.struct_lstm.dropout = 0.0
             tokens = []
             self.outer_mask_pool.reset()
             while True:
@@ -144,7 +146,7 @@ class AttnDecoderRNN(nn.Module):
                 if use_cuda:
                     mask_variable = mask_variable.cuda(device)
                 embedded = self.tag_embeds(input).view(1, 1, -1)
-                output, hidden = self.lstm(embedded, hidden)
+                output, hidden = self.struct_lstm(embedded, hidden)
 
                 attn_weights = F.softmax(torch.bmm(output, encoder_output.transpose(0,1).transpose(1,2)).view(output.size(0), -1), 1)
                 attn_hiddens = torch.bmm(attn_weights.unsqueeze(0), encoder_output.transpose(0, 1))
@@ -167,7 +169,7 @@ class AttnDecoderRNN(nn.Module):
     def forward_2(self, sentence_variable, inputs, hidden, encoder_output, total_rel, least, train, mask_variable):
 
         if train:
-            self.lstm.dropout = self.dropout_p
+            self.rel_lstm.dropout = self.dropout_p
             List = []
             for condition, input in inputs:
                 List.append(self.struct2rel(condition).view(1, 1, -1))
@@ -178,7 +180,7 @@ class AttnDecoderRNN(nn.Module):
             embedded = torch.cat(List, 0)
             embedded = self.dropout(embedded)
 
-            output, hidden = self.lstm(embedded, hidden)
+            output, hidden = self.rel_lstm(embedded, hidden)
 
             selective_score = torch.bmm(torch.bmm(output.transpose(0,1), self.selective_matrix), encoder_output.transpose(0,1).transpose(1,2)).view(output.size(0), -1)
 
@@ -198,7 +200,7 @@ class AttnDecoderRNN(nn.Module):
             pass
     def forward_3(self, inputs, hidden, encoder_output, train, mask_variable):
         if train:
-            self.lstm.dropout = self.dropout_p
+            self.var_lstm.dropout = self.dropout_p
 
             List = []
             for condition, input in inputs:
@@ -207,7 +209,7 @@ class AttnDecoderRNN(nn.Module):
             embedded = torch.cat(List, 0)
             embedded = self.dropout(embedded)
 
-            output, hidden = self.lstm(embedded, hidden)
+            output, hidden = self.var_lstm(embedded, hidden)
 
             attn_weights = F.softmax(torch.bmm(output.transpose(0,1), encoder_output.transpose(0,1).transpose(1,2)).view(output.size(0),-1), 1)
             attn_hiddens = torch.bmm(attn_weights.unsqueeze(0),encoder_output.transpose(0,1))
