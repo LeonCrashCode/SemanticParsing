@@ -269,7 +269,7 @@ class VariableMask:
 
 		self.user_k = []
 		self.k_use = k_use
-	def set_user_k(self, user_k):
+	def set_k(self, user_k):
 		self.user_k = user_k
 
 	def get_step_mask(self):

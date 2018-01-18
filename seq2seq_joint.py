@@ -434,6 +434,7 @@ def decode(sentence_variable, encoder, decoder):
         struct_rel_tokens.append(structs[i])
         if structs[i] == 5 or structs[i] == 6:
             if structs[i] == 5:
+		assert len(user_k[user_k_p]) >= 2
                 decoder.var_mask_pool.set_k(user_k[user_k_p])
                 user_k_p += 1
 
