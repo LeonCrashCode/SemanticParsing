@@ -643,7 +643,7 @@ def trainIters(trn_instances, dev_instances, tst_instances, encoder, decoder, pr
             mask1_variables.append(Variable(torch.FloatTensor(mask1), requires_grad=False))
             mask2_variables.append(Variable(torch.FloatTensor(mask2), requires_grad=False))
             mask3_variables.append(Variable(torch.FloatTensor(mask3), requires_grad=False))
-        
+    exit(1)
 
 #==================================
     dev_sentence_variables = []
@@ -859,7 +859,6 @@ def trainIters(trn_instances, dev_instances, tst_instances, encoder, decoder, pr
             print('dev loss %.10f, s1: %.10f, s2: %.10f, s3: %.10f ' % (dev_loss/len(dev_instances), dev_loss1/len(dev_instances), dev_loss2/len(dev_instances), dev_loss3/len(dev_instances)))
             evaluate(dev_sentence_variables, encoder, decoder, dev_out_dir+str(int(iter/evaluate_every))+".drs")
             evaluate(tst_sentence_variables, encoder, decoder, tst_out_dir+str(int(iter/evaluate_every))+".drs")
-            exit(1)
 
 def evaluate(sentence_variables, encoder, decoder, path):
     out = open(path,"w")
@@ -901,10 +900,10 @@ dev_file = "dev.input"
 tst_file = "test.input"
 pretrain_file = "sskip.100.vectors"
 tag_info_file = "tag.info"
-trn_file = "train.input.part"
-dev_file = "dev.input.part"
-tst_file = "test.input.part"
-pretrain_file = "sskip.100.vectors.part"
+#trn_file = "train.input.part"
+#dev_file = "dev.input.part"
+#tst_file = "test.input.part"
+#pretrain_file = "sskip.100.vectors.part"
 UNK = "<UNK>"
 
 trn_data = readfile(trn_file)
