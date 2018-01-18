@@ -202,27 +202,31 @@ class RelationMask:
 		self.reset(encoder_input_size)
 	def reset(self, encoder_input_size):
 		self.encoder_input_size = encoder_input_size
+		self.is_sdrs = False
 
-	def _get_relations(self, is_sdrs):
+	def set_sdrs(self, is_sdrs):
+		self.is_sdrs = is_sdrs
+
+	def _get_relations(self):
 		res = self._get_zeros(self.tags_info.tag_size) + self._get_ones(self.encoder_input_size)
 		res[1] = self.need
 		idx = 13
-		if is_sdrs:
+		if self.is_sdrs:
 			idx = self.tags_info.global_start
 		while idx < self.tags_info.k_rel_start:
 			res[idx] = self.need
 			idx += 1
 		return res
-	def get_all_mask(self, input_size, least, is_sdrs):
+
+	def get_all_mask(self, input_size, least):
 		res = []
 		for i in range(input_size+1):
-			res.append(self._get_relations(is_sdrs))
+			res.append(self._get_relations())
 		if least:
 			res[0][1] = self.mask # next of condition
-
 		return res
-	def get_step_mask(self, least, is_sdrs):
-		relations = self._get_relations(is_sdrs)
+	def get_step_mask(self, least):
+		relations = self._get_relations()
 		if least:
 			relations[1] = self.mask
 		return relations
@@ -246,9 +250,10 @@ class VariableMask:
 		self.tags_info = tags_info
 		self.mask = 0
 		self.need = 1
+		self.k_use = False
 
 		self.reset(0)
-	def reset(self, p_max):
+	def reset(self, p_max, k_use=False):
 		#self.k = 1
 		self.p_max = p_max
 		self.x = 1
@@ -262,6 +267,11 @@ class VariableMask:
 		self.prev_variable = -1
 		self.pre_prev_variable = -1
 
+		self.user_k = []
+		self.k_use = k_use
+	def set_user_k(self, user_k):
+		self.user_k = user_k
+
 	def get_step_mask(self):
 		if self.stack_drs[-1] == 5:
 			return self._get_sdrs_mask()
@@ -272,13 +282,22 @@ class VariableMask:
 		#SDRS
 		if self.prev_variable == -1:
 			re = self._get_zeros(self.tags_info.tag_size)
-			for idx in self.stack_ex[-1]:
-				re[idx] = self.need
+			if self.k_use:
+				for idx in self.user_k:
+					re[idx] = self.need
+			else:
+				for idx in self.stack_ex[-1]:
+					re[idx] = self.need
+
 			return re
 		elif self.prev_prev_variable == -1:
 			re = self._get_zeros(self.tags_info.tag_size)
-			for idx in self.stack_ex[-1]:
-				re[idx] = self.need
+			if self.k_use:
+				for idx in self.user_k:
+					re[idx] = self.need
+			else:
+				for idx in self.stack_ex[-1]:
+					re[idx] = self.need
 			assert self.prev_variable != -1
 			re[self.prev_variable] = self.mask
 			return re

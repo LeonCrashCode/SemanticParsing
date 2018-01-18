@@ -21,6 +21,9 @@ use_cuda = torch.cuda.is_available()
 if use_cuda:
     os.environ["CUDA_VISIBLE_DEVICES"] = sys.argv[1]
     device = int(sys.argv[1])
+    torch.cuda.manual_seed_all(12345678)
+
+torch.manual_seed(12345678)
 
 dev_out_dir = sys.argv[2]+"_dev/"
 tst_out_dir = sys.argv[2]+"_tst/"
@@ -140,19 +143,21 @@ class AttnDecoderRNN(nn.Module):
             self.struct_lstm.dropout = 0.0
             tokens = []
             self.outer_mask_pool.reset()
+            hidden_rep = []
             while True:
-                mask = self.mask_pool.get_step_mask()
+                mask = self.outer_mask_pool.get_step_mask()
                 mask_variable = Variable(torch.FloatTensor(mask), requires_grad = False, volatile=True).unsqueeze(0)
-                if use_cuda:
-                    mask_variable = mask_variable.cuda(device)
+                mask_variable = mask_variable.cuda(device) if use_cuda else mask_variable
+                
                 embedded = self.tag_embeds(input).view(1, 1, -1)
                 output, hidden = self.struct_lstm(embedded, hidden)
+                hidden_rep.append(output)
 
                 attn_weights = F.softmax(torch.bmm(output, encoder_output.transpose(0,1).transpose(1,2)).view(output.size(0), -1), 1)
                 attn_hiddens = torch.bmm(attn_weights.unsqueeze(0), encoder_output.transpose(0, 1))
                 feat_hiddens = self.feat_tanh(self.feat(torch.cat((attn_hiddens, embedded), 2).view(embedded.size(0),-1)))
 
-                global_score = self.out(feat_hiddens)
+                global_score = self.out_struct(feat_hiddens)
 
                 score = global_score + (mask_variable - 1) * 1e10
 
@@ -160,11 +165,11 @@ class AttnDecoderRNN(nn.Module):
                 idx = input.view(-1).data.tolist()[0]
 
                 tokens.append(idx)
-                self.mask_pool.update(-2, idx)
+                self.outer_mask_pool.update(-2, idx)
 
                 if idx == tags_info.tag_to_ix[tags_info.EOS]:
                     break
-            return Variable(torch.LongTensor(tokens),volatile=True), output
+            return Variable(torch.LongTensor(tokens),volatile=True), torch.cat(hidden_rep,0), hidden
 
     def forward_2(self, sentence_variable, inputs, hidden, encoder_output, total_rel, least, train, mask_variable):
 
@@ -197,7 +202,59 @@ class AttnDecoderRNN(nn.Module):
             return log_softmax_output, output
 
         else:
-            pass
+            self.rel_lstm.dropout = 0.0
+            tokens = []
+            rel = 0
+            hidden_reps = []
+
+            mask_variable_true = Variable(torch.FloatTensor(rel_mask_pool.get_step_mask(True)), requires_grad = False)
+            mask_variable_false = Variable(torch.FloatTensor(rel_mask_pool.get_step_mask(False)), requires_grad = False)
+            if use_cuda:
+                mask_variable_true = mask_variable_true.cuda(device)
+                mask_variable_false = mask_variable_false.cuda(device)
+            embedded = self.struct2rel(inputs).view(1, 1,-1)
+
+            while True:
+                
+                output, hidden = self.rel_lstm(embedded, hidden)
+                hidden_reps.append(output)
+
+                selective_score = torch.bmm(torch.bmm(output, self.selective_matrix), encoder_output.transpose(0,1).transpose(1,2)).view(output.size(0), -1)
+                attn_weights = F.softmax(torch.bmm(output, encoder_output.transpose(0,1).transpose(1,2)).view(output.size(0), -1), 1)
+                attn_hiddens = torch.bmm(attn_weights.unsqueeze(0), encoder_output.transpose(0, 1))
+                feat_hiddens = self.feat_tanh(self.feat(torch.cat((attn_hiddens, embedded), 2).view(embedded.size(0),-1)))
+
+                global_score = self.out_rel(feat_hiddens)
+
+                total_score = torch.cat((global_score, selective_score), 1)
+
+                if least:
+                    output = total_score + (mask_variable_true - 1) * 1e10
+                    least = False
+                else:
+                    output = total_score + (mask_variable_false - 1) * 1e10
+
+                _, input = torch.max(output,1)
+                idx = input.view(-1).data.tolist()[0]
+
+                if idx >= tags_info.tag_size:
+                    ttype = idx - tags_info.tag_size
+                    idx = sentence_variable[2][ttype].view(-1).data.tolist()[0]
+                    idx += tags_info.tag_size
+                    tokens.append(idx)
+                    input = Variable(torch.LongTensor([idx]), volatile=True)
+                    if use_cuda:
+                        input = input.cuda(device)
+                else:
+                    tokens.append(idx)
+
+                if idx == tags_info.tag_to_ix[tags_info.EOS] or rel > 61 or total_rel > 121:
+                    break
+                rel += 1
+                total_rel += 1
+                embedded = self.tag_embeds(input).view(1, 1, -1)
+            return Variable(torch.LongTensor(tokens), volatile=True), torch.cat(hidden_reps,0), hidden
+
     def forward_3(self, inputs, hidden, encoder_output, train, mask_variable):
         if train:
             self.var_lstm.dropout = self.dropout_p
@@ -217,13 +274,42 @@ class AttnDecoderRNN(nn.Module):
 
             global_score = self.out_var(feat_hiddens)
 
-            total_score = global_score
+            score = global_score
 
-            log_softmax_output = F.log_softmax(total_score + (mask_variable - 1) *1e10, 1)
+            log_softmax_output = F.log_softmax(score + (mask_variable - 1) *1e10, 1)
 
             return log_softmax_output, output
         else:
-            pass
+            self.var_lstm.dropout = 0.0
+            tokens = []
+            embedded = self.rel2var(inputs).view(1, 1,-1)
+            while True:
+                output, hidden = self.var_lstm(embedded, hidden)
+
+                attn_weights = F.softmax(torch.bmm(output, encoder_output.transpose(0,1).transpose(1,2)).view(output.size(0), -1), 1)
+                attn_hiddens = torch.bmm(attn_weights.unsqueeze(0), encoder_output.transpose(0, 1))
+                feat_hiddens = self.feat_tanh(self.feat(torch.cat((attn_hiddens, embedded), 2).view(embedded.size(0),-1)))
+
+                global_score = self.out_var(feat_hiddens)
+
+                mask = self.var_mask_pool.get_step_mask()
+                mask_variable = Variable(torch.FloatTensor(mask), volatile=True)
+                mask_variable = mask_variable.cuda(device) if use_cuda else mask_variable
+
+                score = global_score + (mask_variable - 1) * 1e10
+
+                _, input = torch.max(score, 1)
+                embedded = self.tag_embeds(input).view(1, 1, -1)
+
+                idx = input.view(-1).data.tolist()[0]
+                assert idx < tags_info.tag_size
+                if idx == tags_info.tag_to_ix[tags_info.EOS]:
+                    break
+                    
+                tokens.append(idx)
+                self.var_mask_pool.update(idx)
+                
+            return Variable(torch.LongTensor(tokens), volatile=True), hidden
 
 
 def train(sentence_variable, input_variables, gold_variables, mask_variables, encoder, decoder, encoder_optimizer, decoder_optimizer, criterion, back_prop=True):
@@ -240,7 +326,7 @@ def train(sentence_variable, input_variables, gold_variables, mask_variables, en
     ################structure
     decoder_hidden1 = (torch.cat((encoder_hidden[0][-2], encoder_hidden[0][-1]), 1).unsqueeze(0),torch.cat((encoder_hidden[1][-2], encoder_hidden[1][-1]), 1).unsqueeze(0))
     decoder_input1 = input_variables[0]
-    decoder_output1, decoder_hidden1 = decoder(None, decoder_input1, decoder_hidden1, encoder_output, total_rel=None, least=None, train=True, mask_variable=mask_variables[0], opt=1)
+    decoder_output1, hidden_rep1 = decoder(None, decoder_input1, decoder_hidden1, encoder_output, total_rel=None, least=None, train=True, mask_variable=mask_variables[0], opt=1)
     gold_variable1 = gold_variables[0]
     loss1 = criterion(decoder_output1, gold_variable1)
     target_length1 += gold_variable1.size(0)
@@ -252,10 +338,10 @@ def train(sentence_variable, input_variables, gold_variables, mask_variables, en
     p = 0
     for i in range(len(structs)):
         if structs[i] == 5 or structs[i] == 6:
-            decoder_input2.append((decoder_hidden1[i], input_variables[1][p]))
+            decoder_input2.append((hidden_rep1[i], input_variables[1][p]))
             p += 1
     assert p == len(input_variables[1])
-    decoder_output2, decoder_hidden2 = decoder(sentence_variable, decoder_input2, decoder_hidden2, encoder_output, total_rel=None, least=None, train=True, mask_variable=mask_variables[1], opt=2)
+    decoder_output2, hidden_rep2 = decoder(sentence_variable, decoder_input2, decoder_hidden2, encoder_output, total_rel=None, least=None, train=True, mask_variable=mask_variables[1], opt=2)
     loss2 = criterion(decoder_output2, gold_variables[1])
     target_length2 += gold_variables[1].size(0)
 
@@ -274,11 +360,11 @@ def train(sentence_variable, input_variables, gold_variables, mask_variables, en
             pass
         else:
             for k in range(input_variables[1][j].size(0)) :
-                decoder_input3.append((decoder_hidden2[i], input_variables[2][p]))
+                decoder_input3.append((hidden_rep2[i], input_variables[2][p]))
                 i += 1
                 p += 1
     assert p == len(input_variables[2])
-    decoder_output3, decoder_hidden3 = decoder(None, decoder_input3, decoder_hidden3, encoder_output, total_rel=None, least=None, train=True, mask_variable=mask_variables[2], opt=3)
+    decoder_output3, hidden_rep3 = decoder(None, decoder_input3, decoder_hidden3, encoder_output, total_rel=None, least=None, train=True, mask_variable=mask_variables[2], opt=3)
     loss3 = criterion(decoder_output3, gold_variables[2])
     target_length3 += gold_variables[2].size(0)
 
@@ -297,17 +383,72 @@ def decode(sentence_variable, encoder, decoder):
     ####### struct
     decoder_hidden1 = (torch.cat((encoder_hidden[0][-2], encoder_hidden[0][-1]), 1).unsqueeze(0),torch.cat((encoder_hidden[1][-2], encoder_hidden[1][-1]), 1).unsqueeze(0))
 
-    decoder.mask_pool.reset(sentence_variable[0].size(0))
-    structs = struct_variable.view(-1).data.tolist()
+    decoder_input1 = Variable(torch.LongTensor([0]), volatile=True)
+    decoder_input1 = decoder_input1.cuda(device) if use_cuda else decoder_input1
+    decoder_output1, hidden_rep1, decoder_hidden1 = decoder(None, decoder_input1, decoder_hidden1, encoder_output, total_rel=None, least=None, train=False, mask_variable=None, opt=1)
+    structs = decoder_output1.view(-1).data.tolist()
 
-    all_tokens = []
+    ####### relation
+    decoder_hidden2 = (torch.cat((encoder_hidden[0][-2], encoder_hidden[0][-1]), 1).unsqueeze(0),torch.cat((encoder_hidden[1][-2], encoder_hidden[1][-1]), 1).unsqueeze(0))
+    decoder.rel_mask_pool.reset(sentence_variable[0].size(0))
     total_rel = 0
+    relations = []
+    hidden_rep2_list = []
     for i in range(len(structs)):
-        decoder.mask_pool.update(structs[i])
-        if (structs[i] >= 13 and structs[i] < decoder.tags_info.k_rel_start) or structs[i] >= decoder.tags_info.tag_size:
-            tokens, decoder_hidden = decoder(sentence_variable, [s_encoder_output[i], None], None, decoder_hidden, encoder_output, train=False)
-            all_tokens.append(tokens.view(-1).data.tolist())
-    return all_tokens
+        if structs[i] == 5 or structs[i] == 6:
+            least = False
+            if structs[i] == 5 or (structs[i] == 6 and structs[i+1] == 4):
+                least = True
+            decoder.rel_mask_pool.set_sdrs(structs[i] == 5)
+            decoder_output2, hidden_rep2, decoder_hidden2 = decoder(sentence_variable, hidden_rep1[i], decoder_hidden2, encoder_output, total_rel=total_rel, least=least, train=False, mask_variable=None, opt=2)
+            relations.append(decoder_output2.view(-1).data.tolist())
+            hidden_rep2_list.append(hidden_rep2)
+    ####### variable
+    decoder_hidden3 = (torch.cat((encoder_hidden[0][-2], encoder_hidden[0][-1]), 1).unsqueeze(0),torch.cat((encoder_hidden[1][-2], encoder_hidden[1][-1]), 1).unsqueeze(0))
+    #p_max
+    p_max = 0
+    for tok in structs:
+        if tok >= decoder.tags_info.p_rel_start and idx < decoder.tags_info.k_tag_start:
+            p_max += 1
+    #user_k
+    user_k = []
+    stack = []
+    for tok in structs:
+        if tok == ")":
+            if stack[-1][0] == 5:
+                user_k.append(stack[-1][1])
+            stack.pop()
+        else:
+            if tok >= decoder.tags_info.k_rel_start and idx < decoder.tags_info.p_rel_start:
+                stack[-1][1].append(tok - decoder.tags_info.k_rel_start)
+            stack.append([tok,[]])
+    decoder.var_mask_pool.reset(p_max, k_use=True)
+    structs_p = 0
+    user_k_p = 0
+    struct_rel_tokens = []
+    var_tokens = []
+    for i in range(len(structs)):
+        if structs[i] == 1: # EOS
+            continue
+        decoder.var_mask_pool.update(structs[i])
+        struct_rel_tokens.append(structs[i])
+        if structs[i] == 5 or structs[i] == 6:
+            if structs[i] == 5:
+                decoder.var_mask_pool.set_k(user_k[user_k_p])
+                user_k_p += 1
+
+            for j in range(len(relations[structs_p])):
+                if relations[i][j] == 1: # EOS
+                    continue
+                decoder.var_mask_pool.update(relations[i][j])
+                struct_rel_tokens.append(relations[i][j])
+                struct_rel_tokens.append(4) # )
+                decoder_output3, decoder_hidden3= decoder(None, hidden_rep2_list[structs_p][j], decoder_hidden3, encoder_output, total_rel=None, least=None, train=False, mask_variable=None, opt=3)
+                var_tokens.append(decoder_output3.view(-1).data.tolist())
+            structs_p += 1
+    assert structs_p == len(relations)
+
+    return struct_rel_tokens, var_tokens
 
 ######################################################################
 # The whole training process looks like this:
@@ -411,7 +552,7 @@ def trainIters(trn_instances, dev_instances, tst_instances, encoder, decoder, pr
             if type == -2:
                 sel_gen_relations.append(idx)
             else:
-                sel_gen_relations.append(type)
+                sel_gen_relations.append(type+decoder.tags_info.tag_size)
         if use_cuda:
             gold2_variables.append(Variable(torch.LongTensor(sel_gen_relations)).cuda(device))
         else:
@@ -461,7 +602,17 @@ def trainIters(trn_instances, dev_instances, tst_instances, encoder, decoder, pr
                 least = False
                 if idx == 5 or (idx == 6 and instance[3][i+1] == 4):
                     least = True
-                mask2 = mask2 + decoder.rel_mask_pool.get_all_mask(len(instance[4][p]), least, (idx == 5))
+                decoder.rel_mask_pool.set_sdrs(idx == 5)
+                temp_mask = decoder.rel_mask_pool.get_all_mask(len(instance[4][p]), least)
+                for k in range(len(instance[4][p])):
+                    temp_idx = instance[4][p][k][0]
+                    if temp_idx == -2:
+                        temp_idx = instance[4][p][k][1]
+                    else:
+                        temp_idx += decoder.tags_info.tag_size
+                    assert temp_mask[k][temp_idx] == decoder.rel_mask_pool.need
+                mask2 = mask2 + temp_mask
+
                 p += 1
         assert p == len(instance[4])
 
@@ -509,7 +660,7 @@ def trainIters(trn_instances, dev_instances, tst_instances, encoder, decoder, pr
     dev_mask2_variables = []
     dev_mask3_variables = []
 
-    for instance in trn_instances:
+    for instance in dev_instances:
         #print len(sentence_variables)
         dev_sentence_variables.append([])
         if use_cuda:
@@ -539,9 +690,9 @@ def trainIters(trn_instances, dev_instances, tst_instances, encoder, decoder, pr
                 if len(instance[4][p]) == 0:
                     dev_input2_variable.append(None)
                 elif use_cuda:
-                    dev_input2_variable.append(Variable(torch.LongTensor(instance[4][p]), volatile=True).cuda(device))
+                    dev_input2_variable.append(Variable(torch.LongTensor([x[1] for x in instance[4][p]]), volatile=True).cuda(device))
                 else:
-                    dev_input2_variable.append(Variable(torch.LongTensor(instance[4][p]), volatile=True))
+                    dev_input2_variable.append(Variable(torch.LongTensor([x[1] for x in instance[4][p]]), volatile=True))
                 p += 1
         dev_input2_variables.append(dev_input2_variable)
         sel_gen_relations = []
@@ -549,7 +700,7 @@ def trainIters(trn_instances, dev_instances, tst_instances, encoder, decoder, pr
             if type == -2:
                 sel_gen_relations.append(idx)
             else:
-                sel_gen_relations.append(type)
+                sel_gen_relations.append(type+decoder.tags_info.tag_size)
         if use_cuda:
             dev_gold2_variables.append(Variable(torch.LongTensor(sel_gen_relations), volatile=True).cuda(device))
         else:
@@ -589,7 +740,7 @@ def trainIters(trn_instances, dev_instances, tst_instances, encoder, decoder, pr
             decoder.outer_mask_pool.update(-2, idx)
             mask1.append(decoder.outer_mask_pool.get_step_mask())
 
-        ##### mask2
+        #### mask2
         decoder.rel_mask_pool.reset(len(instance[0]))
         mask2 = []
         p = 0
@@ -599,7 +750,16 @@ def trainIters(trn_instances, dev_instances, tst_instances, encoder, decoder, pr
                 least = False
                 if idx == 5 or (idx == 6 and instance[3][i+1] == 4):
                     least = True
-                mask2 = mask2 + decoder.rel_mask_pool.get_all_mask(len(instance[4][p]), least, (idx == 5))
+                decoder.rel_mask_pool.set_sdrs(idx == 5)
+                temp_mask = decoder.rel_mask_pool.get_all_mask(len(instance[4][p]), least)
+                for k in range(len(instance[4][p])):
+                    temp_idx = instance[4][p][k][0]
+                    if temp_idx == -2:
+                        temp_idx = instance[4][p][k][1]
+                    else:
+                        temp_idx += decoder.tags_info.tag_size
+                    assert temp_mask[k][temp_idx] == decoder.rel_mask_pool.need
+                mask2 = mask2 + temp_mask
                 p += 1
         assert p == len(instance[4])
 
@@ -623,13 +783,13 @@ def trainIters(trn_instances, dev_instances, tst_instances, encoder, decoder, pr
         assert p == len(instance[6])
 
         if use_cuda:
-            dev_mask1_variables.append(Variable(torch.LongTensor(mask1), volatile=True).cuda(device))
-            dev_mask2_variables.append(Variable(torch.LongTensor(mask2), volatile=True).cuda(device))
-            dev_mask3_variables.append(Variable(torch.LongTensor(mask3), volatile=True).cuda(device))
+            dev_mask1_variables.append(Variable(torch.FloatTensor(mask1), volatile=True).cuda(device))
+            dev_mask2_variables.append(Variable(torch.FloatTensor(mask2), volatile=True).cuda(device))
+            dev_mask3_variables.append(Variable(torch.FloatTensor(mask3), volatile=True).cuda(device))
         else:
-            dev_mask1_variables.append(Variable(torch.LongTensor(mask1), volatile=True))
-            dev_mask2_variables.append(Variable(torch.LongTensor(mask2), volatile=True))
-            dev_mask3_variables.append(Variable(torch.LongTensor(mask3), volatile=True))
+            dev_mask1_variables.append(Variable(torch.FloatTensor(mask1), volatile=True))
+            dev_mask2_variables.append(Variable(torch.FloatTensor(mask2), volatile=True))
+            dev_mask3_variables.append(Variable(torch.FloatTensor(mask3), volatile=True))
 
 #====================================== test
     tst_sentence_variables = []
@@ -678,7 +838,7 @@ def trainIters(trn_instances, dev_instances, tst_instances, encoder, decoder, pr
             print_loss_total2 = 0
             print_loss_avg3 = print_loss_total3 / print_every
             print_loss_total3 = 0
-            print('epoch %.6f : %.10f' % (iter*1.0 / len(trn_instances), print_loss_avg, print_loss_avg1, print_loss_avg2, print_loss_avg3))
+            print('epoch %.6f : %.10f s1: %.10f s2: %.10f s3: %.10f' % (iter*1.0 / len(trn_instances), print_loss_avg, print_loss_avg1, print_loss_avg2, print_loss_avg3 ))
 
         if iter % evaluate_every == 0:
             dev_idx = 0
@@ -690,16 +850,16 @@ def trainIters(trn_instances, dev_instances, tst_instances, encoder, decoder, pr
             while dev_idx < len(dev_instances):
                 if use_cuda:
                     torch.cuda.empty_cache()
-                a, b, c = train(dev_sentence_variables[dev_idx], (dev_input1_variables[idx], dev_input2_variables[idx], dev_input3_variables[idx]), (dev_gold1_variables[idx], dev_gold2_variables[idx], dev_gold3_variables[idx]), (dev_mask1_variables[idx], dev_mask2_variables[idx], dev_mask3_variables[idx]), encoder, decoder, encoder_optimizer, decoder_optimizer, criterion, back_prop=False)
+                a, b, c = train(dev_sentence_variables[dev_idx], (dev_input1_variables[dev_idx], dev_input2_variables[dev_idx], dev_input3_variables[dev_idx]), (dev_gold1_variables[dev_idx], dev_gold2_variables[dev_idx], dev_gold3_variables[dev_idx]), (dev_mask1_variables[dev_idx], dev_mask2_variables[dev_idx], dev_mask3_variables[dev_idx]), encoder, decoder, encoder_optimizer, decoder_optimizer, criterion, back_prop=False)
                 dev_loss1 += a
                 dev_loss2 += b
                 dev_loss3 += c
                 dev_loss += (a+b+c)
                 dev_idx += 1
-            print('dev loss %.10f' % (dev_loss/len(dev_instances)))
-            exit(1)
+            print('dev loss %.10f, s1: %.10f, s2: %.10f, s3: %.10f ' % (dev_loss/len(dev_instances), dev_loss1/len(dev_instances), dev_loss2/len(dev_instances), dev_loss3/len(dev_instances)))
             evaluate(dev_sentence_variables, encoder, decoder, dev_out_dir+str(int(iter/evaluate_every))+".drs")
             evaluate(tst_sentence_variables, encoder, decoder, tst_out_dir+str(int(iter/evaluate_every))+".drs")
+            exit(1)
 
 def evaluate(sentence_variables, encoder, decoder, path):
     out = open(path,"w")
@@ -707,15 +867,15 @@ def evaluate(sentence_variables, encoder, decoder, path):
         if use_cuda:
             torch.cuda.empty_cache()
         
-        tokens = decode(sentence_variables[idx], encoder, decoder)
+        structs, tokens = decode(sentence_variables[idx], encoder, decoder)
 
         p = 0
         output = []
         for i in range(len(structs)):
-	    if structs[i] < decoder.tags_info.tag_size:
-		output.append(decoder.tags_info.ix_to_tag[structs[i]])
-	    else:
-		output.append(decoder.tags_info.ix_to_lemma[structs[i] - decoder.tags_info.tag_size])
+            if structs[i] < decoder.tags_info.tag_size:
+                output.append(decoder.tags_info.ix_to_tag[structs[i]])
+            else:
+                output.append(decoder.tags_info.ix_to_lemma[structs[i] - decoder.tags_info.tag_size])
             if (structs[i] >= 13 and structs[i] < decoder.tags_info.k_rel_start) or structs[i] >= decoder.tags_info.tag_size:
                 for idx in tokens[p]:
                     output.append(decoder.tags_info.ix_to_tag[idx])
@@ -816,7 +976,6 @@ print "GPU", use_cuda
 if use_cuda:
     encoder = encoder.cuda(device)
     attn_decoder = attn_decoder.cuda(device)
-    structure_encoder = structure_encoder.cuda(device)
 
-trainIters(trn_instances, dev_instances, tst_instances, encoder, attn_decoder, print_every=1000, evaluate_every=50000, learning_rate=0.0005)
+trainIters(trn_instances, dev_instances, tst_instances, encoder, attn_decoder, print_every=10, evaluate_every=10, learning_rate=0.0005)
 
