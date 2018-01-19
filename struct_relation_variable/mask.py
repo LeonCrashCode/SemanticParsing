@@ -634,7 +634,7 @@ class OuterMask:
 		if self.stack_ex[-1][self.k_relation_offset] < 2:
 			#only k
 			re = self._get_zeros(self.tags_info.tag_size) + self._get_zeros(self.encoder_input_size)
-			idx = self.tags_info.k_rel_start + self.k
+			idx = self.tags_info.k_rel_start + self.k - 1
 			re[idx] = self.need
 			return re
 		else:
@@ -648,7 +648,7 @@ class OuterMask:
 						cnt += 1
 				if self.k <= self.tags_info.MAX_KV - cnt:
 					# k is ok
-					idx = self.tags_info.k_rel_start + self.k
+					idx = self.tags_info.k_rel_start + self.k - 1
 					re[idx] = self.need
 			return re
 	def _get_drs_mask(self):
@@ -656,7 +656,7 @@ class OuterMask:
 		re[self.tags_info.tag_to_ix[self.tags_info.reduce]] = self.need
 		if self.relation_count <= 40:
 			if self.p <= self.tags_info.MAX_PV:
-				idx = self.tags_info.p_rel_start + self.p
+				idx = self.tags_info.p_rel_start + self.p - 1
 				re[idx] = self.need
 			re[7] = self.need
 			re[8] = self.need
@@ -703,12 +703,12 @@ class OuterMask:
 			self.stack.append(ix)
 			self.relation_count += 1
 			self.stack_ex.append([0 for i in range(6)])
-		elif ix == self.tags_info.k_rel_start:
+		elif ix >= self.tags_info.k_rel_start and ix < self.tags_info.p_rel_start:
 			self.stack.append(self.tags_info.k_rel_start)
 			self.relation_count += 1
 			self.stack_ex.append([0 for i in range(6)])
 			self.k += 1
-		elif ix == self.tags_info.p_rel_start:
+		elif ix >= self.tags_info.p_rel_start and ix < self.tags_info.k_tag_start:
 			self.stack.append(self.tags_info.p_rel_start)
 			self.relation_count += 1
 			self.stack_ex.append([0 for i in range(6)])
