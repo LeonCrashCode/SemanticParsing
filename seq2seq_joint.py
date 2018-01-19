@@ -77,6 +77,7 @@ class AttnDecoderRNN(nn.Module):
         self.outer_mask_pool = outer_mask_pool
         self.rel_mask_pool = rel_mask_pool
         self.var_mask_pool = var_mask_pool
+        self.total_rel = 0
 
         self.tags_info = tags_info
         self.tag_size = tags_info.tag_size
@@ -111,12 +112,12 @@ class AttnDecoderRNN(nn.Module):
         if use_cuda:
             self.selective_matrix = self.selective_matrix.cuda(device)
 
-    def forward(self, sentence_variable, inputs, hidden, encoder_output, total_rel, least, train, mask_variable, opt):
+    def forward(self, sentence_variable, inputs, hidden, encoder_output, least, train, mask_variable, opt):
 
         if opt == 1:
             return self.forward_1(inputs, hidden, encoder_output, train, mask_variable)
         elif opt == 2:
-            return self.forward_2(sentence_variable, inputs, hidden, encoder_output, total_rel, least, train, mask_variable)
+            return self.forward_2(sentence_variable, inputs, hidden, encoder_output, least, train, mask_variable)
         elif opt == 3:
             return self.forward_3(inputs, hidden, encoder_output, train, mask_variable)
         else:
@@ -171,7 +172,7 @@ class AttnDecoderRNN(nn.Module):
                     break
             return Variable(torch.LongTensor(tokens),volatile=True), torch.cat(hidden_rep,0), hidden
 
-    def forward_2(self, sentence_variable, inputs, hidden, encoder_output, total_rel, least, train, mask_variable):
+    def forward_2(self, sentence_variable, inputs, hidden, encoder_output, least, train, mask_variable):
 
         if train:
             self.rel_lstm.dropout = self.dropout_p
@@ -250,13 +251,13 @@ class AttnDecoderRNN(nn.Module):
 
                 if idx == tags_info.tag_to_ix[tags_info.EOS]:
                     break
-                elif rel > 61 or total_rel > 121:
+                elif rel > 61 or self.total_rel > 121:
                     embedded = self.tag_embeds(input).view(1, 1, -1)
                     output, hidden = self.rel_lstm(embedded, hidden)
                     hidden_reps.append(output)
                     break
                 rel += 1
-                total_rel += 1
+                self.total_rel += 1
                 embedded = self.tag_embeds(input).view(1, 1, -1)
             return Variable(torch.LongTensor(tokens), volatile=True), torch.cat(hidden_reps,0), hidden
 
@@ -331,7 +332,7 @@ def train(sentence_variable, input_variables, gold_variables, mask_variables, en
     ################structure
     decoder_hidden1 = (torch.cat((encoder_hidden[0][-2], encoder_hidden[0][-1]), 1).unsqueeze(0),torch.cat((encoder_hidden[1][-2], encoder_hidden[1][-1]), 1).unsqueeze(0))
     decoder_input1 = input_variables[0]
-    decoder_output1, hidden_rep1 = decoder(None, decoder_input1, decoder_hidden1, encoder_output, total_rel=None, least=None, train=True, mask_variable=mask_variables[0], opt=1)
+    decoder_output1, hidden_rep1 = decoder(None, decoder_input1, decoder_hidden1, encoder_output, least=None, train=True, mask_variable=mask_variables[0], opt=1)
     gold_variable1 = gold_variables[0]
     loss1 = criterion(decoder_output1, gold_variable1)
     target_length1 += gold_variable1.size(0)
@@ -346,7 +347,7 @@ def train(sentence_variable, input_variables, gold_variables, mask_variables, en
             decoder_input2.append((hidden_rep1[i], input_variables[1][p]))
             p += 1
     assert p == len(input_variables[1])
-    decoder_output2, hidden_rep2 = decoder(sentence_variable, decoder_input2, decoder_hidden2, encoder_output, total_rel=None, least=None, train=True, mask_variable=mask_variables[1], opt=2)
+    decoder_output2, hidden_rep2 = decoder(sentence_variable, decoder_input2, decoder_hidden2, encoder_output, least=None, train=True, mask_variable=mask_variables[1], opt=2)
     loss2 = criterion(decoder_output2, gold_variables[1])
     target_length2 += gold_variables[1].size(0)
 
@@ -369,7 +370,7 @@ def train(sentence_variable, input_variables, gold_variables, mask_variables, en
                 i += 1
                 p += 1
     assert p == len(input_variables[2])
-    decoder_output3, hidden_rep3 = decoder(None, decoder_input3, decoder_hidden3, encoder_output, total_rel=None, least=None, train=True, mask_variable=mask_variables[2], opt=3)
+    decoder_output3, hidden_rep3 = decoder(None, decoder_input3, decoder_hidden3, encoder_output, least=None, train=True, mask_variable=mask_variables[2], opt=3)
     loss3 = criterion(decoder_output3, gold_variables[2])
     target_length3 += gold_variables[2].size(0)
 
@@ -390,13 +391,13 @@ def decode(sentence_variable, encoder, decoder):
 
     decoder_input1 = Variable(torch.LongTensor([0]), volatile=True)
     decoder_input1 = decoder_input1.cuda(device) if use_cuda else decoder_input1
-    decoder_output1, hidden_rep1, decoder_hidden1 = decoder(None, decoder_input1, decoder_hidden1, encoder_output, total_rel=None, least=None, train=False, mask_variable=None, opt=1)
+    decoder_output1, hidden_rep1, decoder_hidden1 = decoder(None, decoder_input1, decoder_hidden1, encoder_output, least=None, train=False, mask_variable=None, opt=1)
     structs = decoder_output1.view(-1).data.tolist()
 
     ####### relation
     decoder_hidden2 = (torch.cat((encoder_hidden[0][-2], encoder_hidden[0][-1]), 1).unsqueeze(0),torch.cat((encoder_hidden[1][-2], encoder_hidden[1][-1]), 1).unsqueeze(0))
     decoder.rel_mask_pool.reset(sentence_variable[0].size(0))
-    total_rel = 0
+    decoder.total_rel = 0
     relations = []
     hidden_rep2_list = []
     for i in range(len(structs)):
@@ -405,7 +406,7 @@ def decode(sentence_variable, encoder, decoder):
             if structs[i] == 5 or (structs[i] == 6 and structs[i+1] == 4):
                 least = True
             decoder.rel_mask_pool.set_sdrs(structs[i] == 5)
-            decoder_output2, hidden_rep2, decoder_hidden2 = decoder(sentence_variable, hidden_rep1[i+1], decoder_hidden2, encoder_output, total_rel=total_rel, least=least, train=False, mask_variable=None, opt=2)
+            decoder_output2, hidden_rep2, decoder_hidden2 = decoder(sentence_variable, hidden_rep1[i+1], decoder_hidden2, encoder_output, least=least, train=False, mask_variable=None, opt=2)
             relations.append(decoder_output2.view(-1).data.tolist())
             hidden_rep2_list.append(hidden_rep2)
     ####### variable
@@ -449,7 +450,7 @@ def decode(sentence_variable, encoder, decoder):
                 decoder.var_mask_pool.update(relations[structs_p][j])
                 struct_rel_tokens.append(relations[structs_p][j])
                 struct_rel_tokens.append(4) # )
-                decoder_output3, decoder_hidden3= decoder(None, hidden_rep2_list[structs_p][j+1], decoder_hidden3, encoder_output, total_rel=None, least=None, train=False, mask_variable=None, opt=3)
+                decoder_output3, decoder_hidden3= decoder(None, hidden_rep2_list[structs_p][j+1], decoder_hidden3, encoder_output, least=None, train=False, mask_variable=None, opt=3)
                 var_tokens.append(decoder_output3.view(-1).data.tolist())
             structs_p += 1
     assert structs_p == len(relations)
