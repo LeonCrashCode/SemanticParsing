@@ -888,6 +888,53 @@ def evaluate(sentence_variables, encoder, decoder, path):
         out.write(" ".join(output)+"\n")
         out.flush()
     out.close()
+
+def test(dev_instances, tst_instances, encoder, decoder):
+    #====================================== test
+    dev_sentence_variables = []
+
+    for instance in dev_instances:
+        dev_sentence_variable = []
+        if use_cuda:
+            dev_sentence_variable.append(Variable(instance[0], volatile=True).cuda(device))
+            dev_sentence_variable.append(Variable(instance[1], volatile=True).cuda(device))
+            dev_sentence_variable.append(Variable(instance[2], volatile=True).cuda(device))
+            
+        else:
+            dev_sentence_variable.append(Variable(instance[0], volatile=True))
+            dev_sentence_variable.append(Variable(instance[1], volatile=True))
+            dev_sentence_variable.append(Variable(instance[2], volatile=True))
+            
+        dev_sentence_variables.append(dev_sentence_variable)
+
+    #====================================== test
+    tst_sentence_variables = []
+
+    for instance in tst_instances:
+        tst_sentence_variable = []
+        if use_cuda:
+            tst_sentence_variable.append(Variable(instance[0], volatile=True).cuda(device))
+            tst_sentence_variable.append(Variable(instance[1], volatile=True).cuda(device))
+            tst_sentence_variable.append(Variable(instance[2], volatile=True).cuda(device))
+            
+        else:
+            tst_sentence_variable.append(Variable(instance[0], volatile=True))
+            tst_sentence_variable.append(Variable(instance[1], volatile=True))
+            tst_sentence_variable.append(Variable(instance[2], volatile=True))
+            
+        tst_sentence_variables.append(tst_sentence_variable)
+
+    check_point = {}
+    if len(sys.argv) == 4:
+        check_point = torch.load(sys.argv[3])
+        encoder.load_state_dict(check_point["encoder"])
+        decoder.load_state_dict(check_point["decoder"])
+        if use_cuda:
+            encoder = encoder.cuda(device)
+            decoder = decoder.cuda(device)
+    evaluate(dev_sentence_variables, encoder, decoder, dev_out_dir+"dev.drs")
+    evaluate(tst_sentence_variables, encoder, decoder, tst_out_dir+"tst.drs")
+
 #####################################################################################
 #####################################################################################
 #####################################################################################
@@ -981,5 +1028,8 @@ if use_cuda:
     encoder = encoder.cuda(device)
     attn_decoder = attn_decoder.cuda(device)
 
-trainIters(trn_instances, dev_instances, tst_instances, encoder, attn_decoder, print_every=1000, evaluate_every=50000, learning_rate=0.0005)
+if len(sys.argv) == 5 and sys.argv[-1] == "test":
+    test(dev_instances, tst_instances, encoder, attn_decoder)
+else:
+    trainIters(trn_instances, dev_instances, tst_instances, encoder, attn_decoder, print_every=1000, evaluate_every=50000, learning_rate=0.0005)
 
