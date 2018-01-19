@@ -817,7 +817,7 @@ def trainIters(trn_instances, dev_instances, tst_instances, encoder, decoder, pr
 #======================================
     idx = -1
     iter = 0
-    if len(sys.argv) == 4:
+    if len(sys.argv) >= 4:
         iter = check_point["iter"]
         idx = check_point["idx"]
 
@@ -926,7 +926,7 @@ def test(dev_instances, tst_instances, encoder, decoder):
         tst_sentence_variables.append(tst_sentence_variable)
 
     check_point = {}
-    if len(sys.argv) == 4:
+    if len(sys.argv) >= 4:
         check_point = torch.load(sys.argv[3])
         encoder.load_state_dict(check_point["encoder"])
         decoder.load_state_dict(check_point["decoder"])
