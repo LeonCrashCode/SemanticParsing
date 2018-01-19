@@ -17,6 +17,9 @@ use_cuda = torch.cuda.is_available()
 if use_cuda:
     os.environ["CUDA_VISIBLE_DEVICES"] = sys.argv[1]
     device = int(sys.argv[1])
+    torch.cuda.manual_seed_all(12345678)
+
+torch.manual_seed(12345678)
 
 dev_out_dir = sys.argv[2]+"_dev/"
 tst_out_dir = sys.argv[2]+"_tst/"
@@ -233,7 +236,7 @@ def trainIters(trn_instances, dev_instances, tst_instances, encoder, decoder, pr
     criterion = nn.NLLLoss()
 
     check_point = {}
-    if len(sys.argv) == 4:
+    if len(sys.argv) >= 4:
         check_point = torch.load(sys.argv[3])
         encoder.load_state_dict(check_point["encoder"])
         decoder.load_state_dict(check_point["decoder"])
@@ -244,7 +247,7 @@ def trainIters(trn_instances, dev_instances, tst_instances, encoder, decoder, pr
     encoder_optimizer = optim.Adam(filter(lambda p: p.requires_grad, encoder.parameters()), lr=learning_rate, weight_decay=1e-4)
     decoder_optimizer = optim.Adam(filter(lambda p: p.requires_grad, decoder.parameters()), lr=learning_rate, weight_decay=1e-4)
 
-    if len(sys.argv) == 4:
+    if len(sys.argv) >= 4:
         encoder_optimizer.load_state_dict(check_point["encoder_optimizer"])
         decoder_optimizer.load_state_dict(check_point["decoder_optimizer"])
 
@@ -377,7 +380,7 @@ def trainIters(trn_instances, dev_instances, tst_instances, encoder, decoder, pr
 
     idx = -1
     iter = 0
-    if len(sys.argv) == 4:
+    if len(sys.argv) >= 4:
         iter = check_point["iter"]
         idx = check_point["idx"]
 
