@@ -248,7 +248,12 @@ class AttnDecoderRNN(nn.Module):
                 else:
                     tokens.append(idx)
 
-                if idx == tags_info.tag_to_ix[tags_info.EOS] or rel > 61 or total_rel > 121:
+                if idx == tags_info.tag_to_ix[tags_info.EOS]:
+                    break
+                elif rel > 61 or total_rel > 121:
+                    embedded = self.tag_embeds(input).view(1, 1, -1)
+                    output, hidden = self.rel_lstm(embedded, hidden)
+                    hidden_reps.append(output)
                     break
                 rel += 1
                 total_rel += 1
@@ -395,12 +400,12 @@ def decode(sentence_variable, encoder, decoder):
     relations = []
     hidden_rep2_list = []
     for i in range(len(structs)):
-        if structs[i] == 5 or structs[i] == 6:
+        if structs[i] == 5 or structs[i] == 6: # prev output, and hidden_rep1[i+1] is the input representation of prev output.
             least = False
             if structs[i] == 5 or (structs[i] == 6 and structs[i+1] == 4):
                 least = True
             decoder.rel_mask_pool.set_sdrs(structs[i] == 5)
-            decoder_output2, hidden_rep2, decoder_hidden2 = decoder(sentence_variable, hidden_rep1[i], decoder_hidden2, encoder_output, total_rel=total_rel, least=least, train=False, mask_variable=None, opt=2)
+            decoder_output2, hidden_rep2, decoder_hidden2 = decoder(sentence_variable, hidden_rep1[i+1], decoder_hidden2, encoder_output, total_rel=total_rel, least=least, train=False, mask_variable=None, opt=2)
             relations.append(decoder_output2.view(-1).data.tolist())
             hidden_rep2_list.append(hidden_rep2)
     ####### variable
@@ -434,7 +439,7 @@ def decode(sentence_variable, encoder, decoder):
         struct_rel_tokens.append(structs[i])
         if structs[i] == 5 or structs[i] == 6:
             if structs[i] == 5:
-		assert len(user_k[user_k_p]) >= 2
+                assert len(user_k[user_k_p]) >= 2
                 decoder.var_mask_pool.set_k(user_k[user_k_p])
                 user_k_p += 1
 
@@ -444,7 +449,7 @@ def decode(sentence_variable, encoder, decoder):
                 decoder.var_mask_pool.update(relations[structs_p][j])
                 struct_rel_tokens.append(relations[structs_p][j])
                 struct_rel_tokens.append(4) # )
-                decoder_output3, decoder_hidden3= decoder(None, hidden_rep2_list[structs_p][j], decoder_hidden3, encoder_output, total_rel=None, least=None, train=False, mask_variable=None, opt=3)
+                decoder_output3, decoder_hidden3= decoder(None, hidden_rep2_list[structs_p][j+1], decoder_hidden3, encoder_output, total_rel=None, least=None, train=False, mask_variable=None, opt=3)
                 var_tokens.append(decoder_output3.view(-1).data.tolist())
             structs_p += 1
     assert structs_p == len(relations)
