@@ -449,9 +449,11 @@ def decode(sentence_variable, encoder, decoder):
                     continue
                 decoder.var_mask_pool.update(relations[structs_p][j])
                 struct_rel_tokens.append(relations[structs_p][j])
-                struct_rel_tokens.append(4) # )
+                 # )
                 decoder_output3, decoder_hidden3= decoder(None, hidden_rep2_list[structs_p][j+1], decoder_hidden3, encoder_output, least=None, train=False, mask_variable=None, opt=3)
                 var_tokens.append(decoder_output3.view(-1).data.tolist())
+                decoder.var_mask_pool.update(4)
+                struct_rel_tokens.append(4)
             structs_p += 1
     assert structs_p == len(relations)
 
