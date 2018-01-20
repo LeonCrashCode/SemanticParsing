@@ -18,7 +18,9 @@ use_cuda = torch.cuda.is_available()
 if use_cuda:
     os.environ["CUDA_VISIBLE_DEVICES"] = sys.argv[1]
     device = int(sys.argv[1])
+    torch.cuda.manual_seed_all(12345678)
 
+torch.manual_seed(12345678)
 dev_out_dir = sys.argv[2]+"_dev/"
 tst_out_dir = sys.argv[2]+"_tst/"
 model_dir = sys.argv[2]+"_model/"
@@ -130,10 +132,8 @@ class AttnDecoderRNN(nn.Module):
             self.selective_matrix = self.selective_matrix.cuda(device)
 
     def forward(self, sentence_variable, inputs, mask_variable, hidden, encoder_output, least, train=True):
-        condition = inputs[0]
-        input = inputs[1]
         if train:
-            self.rel_lstm.dropout = self.dropout_p
+            self.lstm.dropout = self.dropout_p
             List = []
             for condition, input in inputs:
                 List.append(self.condition2input(condition).view(1, 1, -1))
@@ -157,7 +157,7 @@ class AttnDecoderRNN(nn.Module):
 
             output = F.log_softmax(total_score + (mask_variable - 1) *1e10, 1)
 
-            return output, hidden
+            return output
         else:
             self.lstm.dropout = 0.0
             tokens = []
@@ -169,7 +169,7 @@ class AttnDecoderRNN(nn.Module):
                 mask_variable_true = mask_variable_true.cuda(device)
                 mask_variable_false = mask_variable_false.cuda(device)
 
-            embedded = self.condition2input(condition).view(1, 1,-1)
+            embedded = self.condition2input(inputs).view(1, 1,-1)
             while True:
                 
                 output, hidden = self.lstm(embedded, hidden)
@@ -240,10 +240,10 @@ def train(sentence_variable, struct_variable, target_variables, gold_variables, 
             decoder_input.append((s_encoder_output[i],target_variables[p]))
             p += 1
     decoder.total_rel = 0
-    decoder_output = decoder(sentence_variable, decoder_input, mask_variables, hidden, encoder_output, least=None, train=True):
+    decoder_output = decoder(sentence_variable, decoder_input, mask_variables, decoder_hidden, encoder_output, least=None, train=True)
 
-    loss += criterion(decoder_output, gold_variable)
-    target_length += gold_variable.size(0)
+    loss += criterion(decoder_output, gold_variables)
+    target_length += gold_variables.size(0)
     assert p == len(target_variables)
 
     if back_prop:
@@ -274,7 +274,7 @@ def decode(sentence_variable, struct_variable, encoder, s_encoder, decoder):
             if structs[i] == 5 or (structs[i] == 6 and structs[i+1] == 4):
                 least = True
             decoder.mask_pool.set_sdrs(structs[i] == 5)
-            tokens, decoder_hidden = decoder(sentence_variable, [s_encoder_output[i], None], None, decoder_hidden, encoder_output, total_rel, least, train=False)
+            tokens, decoder_hidden = decoder(sentence_variable, s_encoder_output[i], None, decoder_hidden, encoder_output, least, train=False)
 
             all_tokens.append(tokens.view(-1,2).data.tolist())
     return all_tokens
@@ -344,12 +344,12 @@ def trainIters(trn_instances, dev_instances, tst_instances, dev_struct_instances
             sentence_variables[-1].append(Variable(instance[0]).cuda(device))
             sentence_variables[-1].append(Variable(instance[1]).cuda(device))
             sentence_variables[-1].append(Variable(instance[2]).cuda(device))
-            sentence_variables[-1].append(Variable([x[1] for x in instance[3]]).cuda(device))
+	    sentence_variables[-1].append(Variable(torch.LongTensor([x[1] for x in instance[3]])).cuda(device))
         else:
             sentence_variables[-1].append(Variable(instance[0]))
             sentence_variables[-1].append(Variable(instance[1]))
             sentence_variables[-1].append(Variable(instance[2]))
-            sentence_variables[-1].append(Variable([x[1] for x in instance[3]]))
+            sentence_variables[-1].append(Variable(torch.LongTensor([x[1] for x in instance[3]])))
 
         target_variable = []
         all_relations = []
@@ -365,7 +365,6 @@ def trainIters(trn_instances, dev_instances, tst_instances, dev_struct_instances
                     target_variable.append(Variable(torch.LongTensor([x[1] for x in instance[4][p]])).cuda(device))
                 else:
                     target_variable.append(Variable(torch.LongTensor([x[1] for x in instance[4][p]])))
-                        target_variable.append(Variable(torch.LongTensor([ x[1] for x in instance[4][p]])).cuda(device))
                 p += 1
         target_variables.append(target_variable)
 
@@ -391,22 +390,22 @@ def trainIters(trn_instances, dev_instances, tst_instances, dev_struct_instances
                 if idx == 5 or (idx == 6 and instance[3][i+1][1] == 4):
                     least = True
                 decoder.mask_pool.set_sdrs(idx == 5)
-                temp_mask = decoder.rel_mask_pool.get_all_mask(len(instance[4][p]), least)
+                temp_mask = decoder.mask_pool.get_all_mask(len(instance[4][p]), least)
                 for k in range(len(instance[4][p])):
                     temp_idx = instance[4][p][k][0]
                     if temp_idx == -2:
                         temp_idx = instance[4][p][k][1]
                     else:
                         temp_idx += decoder.tags_info.tag_size
-                    assert temp_mask[k][temp_idx] == decoder.rel_mask_pool.need
+                    assert temp_mask[k][temp_idx] == decoder.mask_pool.need
                 mask = mask + temp_mask
                 p += 1
         assert p == len(instance[4])
 
         if use_cuda:
-            mask_variables.append(Variable(torch.LongTensor(mask), requires_grad=False).cuda(device))
+            mask_variables.append(Variable(torch.FloatTensor(mask), requires_grad=False).cuda(device))
         else:
-            mask_variables.append(Variable(torch.LongTensor(mask), requires_grad=False))
+            mask_variables.append(Variable(torch.FloatTensor(mask), requires_grad=False))
 #==================================
     dev_sentence_variables = []
     dev_target_variables = []
@@ -420,12 +419,12 @@ def trainIters(trn_instances, dev_instances, tst_instances, dev_struct_instances
             dev_sentence_variables[-1].append(Variable(instance[0], volatile=True).cuda(device))
             dev_sentence_variables[-1].append(Variable(instance[1], volatile=True).cuda(device))
             dev_sentence_variables[-1].append(Variable(instance[2], volatile=True).cuda(device))
-            dev_sentence_variables[-1].append(Variable([x[1] for x in instance[3]], volatile=True).cuda(device))
+            dev_sentence_variables[-1].append(Variable(torch.LongTensor([x[1] for x in instance[3]]), volatile=True).cuda(device))
         else:
             dev_sentence_variables[-1].append(Variable(instance[0], volatile=True))
             dev_sentence_variables[-1].append(Variable(instance[1], volatile=True))
             dev_sentence_variables[-1].append(Variable(instance[2], volatile=True))
-            dev_sentence_variables[-1].append(Variable([x[1] for x in instance[3]], volatile=True))
+            dev_sentence_variables[-1].append(Variable(torch.LongTensor([x[1] for x in instance[3]]), volatile=True))
 
         target_variable = []
         all_relations = []
@@ -441,7 +440,6 @@ def trainIters(trn_instances, dev_instances, tst_instances, dev_struct_instances
                     target_variable.append(Variable(torch.LongTensor([x[1] for x in instance[4][p]]), volatile=True).cuda(device))
                 else:
                     target_variable.append(Variable(torch.LongTensor([x[1] for x in instance[4][p]]), volatile=True))
-                        target_variable.append(Variable(torch.LongTensor([ x[1] for x in instance[4][p]]), volatile=True).cuda(device))
                 p += 1
         dev_target_variables.append(target_variable)
 
@@ -467,22 +465,22 @@ def trainIters(trn_instances, dev_instances, tst_instances, dev_struct_instances
                 if idx == 5 or (idx == 6 and instance[3][i+1][1] == 4):
                     least = True
                 decoder.mask_pool.set_sdrs(idx == 5)
-                temp_mask = decoder.rel_mask_pool.get_all_mask(len(instance[4][p]), least)
+                temp_mask = decoder.mask_pool.get_all_mask(len(instance[4][p]), least)
                 for k in range(len(instance[4][p])):
                     temp_idx = instance[4][p][k][0]
                     if temp_idx == -2:
                         temp_idx = instance[4][p][k][1]
                     else:
                         temp_idx += decoder.tags_info.tag_size
-                    assert temp_mask[k][temp_idx] == decoder.rel_mask_pool.need
+                    assert temp_mask[k][temp_idx] == decoder.mask_pool.need
                 mask = mask + temp_mask
                 p += 1
         assert p == len(instance[4])
 
         if use_cuda:
-            dev_mask_variables.append(Variable(torch.LongTensor(mask), volatile=True).cuda(device))
+            dev_mask_variables.append(Variable(torch.FloatTensor(mask), volatile=True).cuda(device))
         else:
-            dev_mask_variables.append(Variable(torch.LongTensor(mask), volatile=True))
+            dev_mask_variables.append(Variable(torch.FloatTensor(mask), volatile=True))
 
 
     for instance in dev_struct_instances:
@@ -539,7 +537,7 @@ def trainIters(trn_instances, dev_instances, tst_instances, dev_struct_instances
         if iter % evaluate_every == 0:
             dev_idx = 0
             dev_loss = 0.0
-            torch.save({"iter": iter, "idx":idx,  "encoder":encoder.state_dict(), "decoder":decoder.state_dict(), "s_encoder": s_encoder.state_dict(), "encoder_optimizer": encoder_optimizer.state_dict(), "decoder_optimizer": decoder_optimizer.state_dict(), "s_encoder_optimizer", s_encoder_optimizer.state_dict()}, model_dir+str(int(iter/evaluate_every))+".model")
+            torch.save({"iter": iter, "idx":idx,  "encoder":encoder.state_dict(), "decoder":decoder.state_dict(), "s_encoder": s_encoder.state_dict(), "encoder_optimizer": encoder_optimizer.state_dict(), "decoder_optimizer": decoder_optimizer.state_dict(), "s_encoder_optimizer":s_encoder_optimizer.state_dict()}, model_dir+str(int(iter/evaluate_every))+".model")
             while dev_idx < len(dev_instances):
                 if use_cuda:
                     torch.cuda.empty_cache()

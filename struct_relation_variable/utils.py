@@ -28,7 +28,7 @@ def structure2instance(trn_data, ix):
 		instances.append([])
 		for item in one:
 			instances[-1].append(ix.type(item))
-			assert instances[-1][-1][-1] == -2
+			assert instances[-1][-1][0] == -2
 	return instances
 
 def readstructure_relation(filename):
@@ -158,9 +158,9 @@ def data2instance_structure_relation(trn_data, ixes):
 				elif idx >= 5 and idx <= 12:
 					instances[-1][-1].append([type, idx])
 				elif idx >= ixes[3].k_rel_start and idx < ixes[3].p_rel_start:
-					instances[-1][-1].append([type, ixes[3].k_rel_start])
+					instances[-1][-1].append([type, idx])
 				elif idx >= ixes[3].p_rel_start and idx < ixes[3].k_tag_start:
-					instances[-1][-1].append([type, ixes[3].p_rel_start])
+					instances[-1][-1].append([type, idx])
 				elif idx >= 13 and idx < ixes[3].k_rel_start:
 					relation += 1
 			else:
