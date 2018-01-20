@@ -284,7 +284,7 @@ class VariableMask:
 			re = self._get_zeros(self.tags_info.tag_size)
 			if self.k_use:
 				for idx in self.user_k:
-					re[idx] = self.need
+					re[idx + self.tags_info.k_tag_start] = self.need
 			else:
 				for idx in self.stack_ex[-1]:
 					re[idx] = self.need
@@ -294,7 +294,7 @@ class VariableMask:
 			re = self._get_zeros(self.tags_info.tag_size)
 			if self.k_use:
 				for idx in self.user_k:
-					re[idx] = self.need
+					re[idx + self.tags_info.k_tag_start] = self.need
 			else:
 				for idx in self.stack_ex[-1]:
 					re[idx] = self.need
@@ -444,6 +444,8 @@ class VariableMask:
 		print "stack", self.stack
 		print "stack_ex", self.stack_ex
 		print "stack_drs", self.stack_drs
+		print "k_use", self.k_use
+		print "user_k", self.user_k
 #		print "kpxes", self.k, self.p, self.x, self.e, self.s
 		print "xes", self.x, self.e, self.s
 	def _get_zeros(self, size):
