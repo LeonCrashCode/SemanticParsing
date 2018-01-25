@@ -142,7 +142,7 @@ class AttnDecoderRNN(nn.Module):
             return Variable(torch.LongTensor(tokens),volatile=True)
 
 
-def train(sentence_variable, target_variable, gold_variable, mask_variable, encoder, decoder, encoder_optimizer, decoder_optimizer, criterion, back_prop=True):
+def train(sentence_variable, target_variable, gold_variable, mask, encoder, decoder, encoder_optimizer, decoder_optimizer, criterion, back_prop=True):
     encoder_hidden = encoder.initHidden()
 
     encoder_optimizer.zero_grad()
@@ -153,11 +153,16 @@ def train(sentence_variable, target_variable, gold_variable, mask_variable, enco
    
     loss = 0
 
+    mask_variable = Variable(torch.FloatTensor(mask), requires_grad=False)
+    if use_cuda:
+        mask_variable = mask_variable.cuda(device)
+
     encoder_output, encoder_hidden = encoder(sentence_variable, encoder_hidden)
 
     decoder_input = Variable(torch.LongTensor([decoder.tags_info.tag_to_ix[SOS]]))
     if back_prop == False:
         decoder_input.volatile=True
+        mask_variable.volatile=True
 
     decoder_input = decoder_input.cuda(device) if use_cuda else decoder_input
     decoder_input = torch.cat((decoder_input, target_variable))
@@ -244,16 +249,13 @@ def trainIters(trn_instances, dev_instances, tst_instances, encoder, decoder, pr
     #===============================
     sentence_variables = []
     target_variables = []
-    mask_variables = []
+    masks= []
     gold_variables = []
 
     for instance in trn_instances:
         #print "===========",len(mask_variables)
         decoder.mask_pool.reset()
-        if use_cuda:
-            mask_variables.append(Variable(torch.FloatTensor(decoder.mask_pool.get_all_mask(instance[3])), requires_grad = False).cuda(device))
-        else:
-            mask_variables.append(Variable(torch.FloatTensor(decoder.mask_pool.get_all_mask(instance[3])), requires_grad = False))
+        masks.append(decoder.mask_pool.get_all_mask(instance[3]))
 
     for instance in trn_instances:
         sentence_variable = []
@@ -278,15 +280,12 @@ def trainIters(trn_instances, dev_instances, tst_instances, encoder, decoder, pr
 #==================================
     dev_sentence_variables = []
     dev_target_variables = []
-    dev_mask_variables = []
+    dev_masks = []
     dev_gold_variables = []
 
     for instance in dev_instances:
         decoder.mask_pool.reset()
-        if use_cuda:
-            dev_mask_variables.append(Variable(torch.FloatTensor(decoder.mask_pool.get_all_mask(instance[3])), volatile=True).cuda(device))
-        else:
-            dev_mask_variables.append(Variable(torch.FloatTensor(decoder.mask_pool.get_all_mask(instance[3])), volatile=True))
+        dev_masks.append(decoder.mask_pool.get_all_mask(instance[3]))
 
     for instance in dev_instances:
         dev_sentence_variable = []
@@ -311,15 +310,7 @@ def trainIters(trn_instances, dev_instances, tst_instances, encoder, decoder, pr
 #======================================
     tst_sentence_variables = []
     tst_target_variables = []
-    tst_mask_variables = []
     tst_gold_variables = []
-
-    for instance in tst_instances:
-        decoder.mask_pool.reset()
-        if use_cuda:
-            tst_mask_variables.append(Variable(torch.FloatTensor(decoder.mask_pool.get_all_mask(instance[3])), volatile=True).cuda(device))
-        else:
-            tst_mask_variables.append(Variable(torch.FloatTensor(decoder.mask_pool.get_all_mask(instance[3])), volatile=True))
 
     for instance in tst_instances:
         tst_sentence_variable = []
@@ -355,7 +346,7 @@ def trainIters(trn_instances, dev_instances, tst_instances, encoder, decoder, pr
         if idx == len(trn_instances):
             idx = 0       
 
-        loss = train(sentence_variables[idx], target_variables[idx], gold_variables[idx], mask_variables[idx], encoder, decoder, encoder_optimizer, decoder_optimizer, criterion)
+        loss = train(sentence_variables[idx], target_variables[idx], gold_variables[idx], masks[idx], encoder, decoder, encoder_optimizer, decoder_optimizer, criterion)
         print_loss_total += loss
 
         if iter % print_every == 0:
@@ -371,7 +362,7 @@ def trainIters(trn_instances, dev_instances, tst_instances, encoder, decoder, pr
                 if use_cuda:
                     torch.cuda.empty_cache()
                 
-                dev_loss += train(dev_sentence_variables[dev_idx], dev_target_variables[dev_idx], dev_gold_variables[dev_idx], dev_mask_variables[dev_idx], encoder, decoder, encoder_optimizer, decoder_optimizer, criterion, back_prop=False)
+                dev_loss += train(dev_sentence_variables[dev_idx], dev_target_variables[dev_idx], dev_gold_variables[dev_idx], dev_masks[dev_idx], encoder, decoder, encoder_optimizer, decoder_optimizer, criterion, back_prop=False)
                 dev_idx += 1
             print('dev loss %.10f' % (dev_loss/len(dev_instances)))
             evaluate(dev_sentence_variables, dev_target_variables, encoder, decoder, dev_out_dir+str(int(iter/evaluate_every))+".drs")
