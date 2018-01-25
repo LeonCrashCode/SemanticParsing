@@ -249,13 +249,13 @@ def trainIters(trn_instances, dev_instances, tst_instances, encoder, decoder, pr
     #===============================
     sentence_variables = []
     target_variables = []
-    masks= []
+    #masks= []
     gold_variables = []
 
-    for instance in trn_instances:
+    #for instance in trn_instances:
         #print "===========",len(mask_variables)
-        decoder.mask_pool.reset()
-        masks.append(decoder.mask_pool.get_all_mask(instance[3]))
+    #    decoder.mask_pool.reset()
+    #    masks.append(decoder.mask_pool.get_all_mask(instance[3]))
 
     for instance in trn_instances:
         sentence_variable = []
@@ -280,12 +280,12 @@ def trainIters(trn_instances, dev_instances, tst_instances, encoder, decoder, pr
 #==================================
     dev_sentence_variables = []
     dev_target_variables = []
-    dev_masks = []
+    #dev_masks = []
     dev_gold_variables = []
 
-    for instance in dev_instances:
-        decoder.mask_pool.reset()
-        dev_masks.append(decoder.mask_pool.get_all_mask(instance[3]))
+    #for instance in dev_instances:
+    #    decoder.mask_pool.reset()
+    #    dev_masks.append(decoder.mask_pool.get_all_mask(instance[3]))
 
     for instance in dev_instances:
         dev_sentence_variable = []
@@ -346,7 +346,9 @@ def trainIters(trn_instances, dev_instances, tst_instances, encoder, decoder, pr
         if idx == len(trn_instances):
             idx = 0       
 
-        loss = train(sentence_variables[idx], target_variables[idx], gold_variables[idx], masks[idx], encoder, decoder, encoder_optimizer, decoder_optimizer, criterion)
+        decoder.mask_pool.reset()
+        mask = decoder.mask_pool.get_all_mask(trn_instances[idx][3])
+        loss = train(sentence_variables[idx], target_variables[idx], gold_variables[idx], mask, encoder, decoder, encoder_optimizer, decoder_optimizer, criterion)
         print_loss_total += loss
 
         if iter % print_every == 0:
@@ -361,8 +363,9 @@ def trainIters(trn_instances, dev_instances, tst_instances, encoder, decoder, pr
             while dev_idx < len(dev_instances):
                 if use_cuda:
                     torch.cuda.empty_cache()
-                
-                dev_loss += train(dev_sentence_variables[dev_idx], dev_target_variables[dev_idx], dev_gold_variables[dev_idx], dev_masks[dev_idx], encoder, decoder, encoder_optimizer, decoder_optimizer, criterion, back_prop=False)
+                decoder.mask_pool.reset()
+                dev_mask = decoder.mask_pool.get_all_mask(dev_instances[dev_idx][3])
+                dev_loss += train(dev_sentence_variables[dev_idx], dev_target_variables[dev_idx], dev_gold_variables[dev_idx], dev_mask, encoder, decoder, encoder_optimizer, decoder_optimizer, criterion, back_prop=False)
                 dev_idx += 1
             print('dev loss %.10f' % (dev_loss/len(dev_instances)))
             evaluate(dev_sentence_variables, dev_target_variables, encoder, decoder, dev_out_dir+str(int(iter/evaluate_every))+".drs")
