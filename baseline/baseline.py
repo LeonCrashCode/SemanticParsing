@@ -113,11 +113,17 @@ class AttnDecoderRNN(nn.Module):
             self.lstm.dropout = 0.0
             tokens = []
             self.mask_pool.reset()
+            one_mask_variable = Variable(torch.FloatTensor([1 for i in range(decoder.tags_info.all_tag_size - decoder.tags_info.tag_size)]), volatile=True)
+            zero_mask_variable = Variable(torch.FloatTensor([0 for i in range(decoder.tags_info.all_tag_size - decoder.tags_info.tag_size)]), volatile=True)
+    
             while True:
                 mask = self.mask_pool.get_step_mask()
-                mask_variable = Variable(torch.FloatTensor(mask), requires_grad = False, volatile=True).unsqueeze(0)
-                if use_cuda:
-                    mask_variable = mask_variable.cuda(device)
+                mask_variable = Variable(torch.FloatTensor(mask[:-1]), volatile=True).unsqueeze(0)
+                if mask[-1] == 0:
+                    mask_variable = torch.cat((mask_variable, zero_mask_variable),1)
+                elif mask[-1] == 1:
+                    mask_variable = torch.cat((mask_variable, one_mask_variable),1)
+                mask_variable = mask_variable.cuda(device) if use_cuda else mask_variable
                 embedded = self.tag_embeds(input).view(1, 1, -1)
                 output, hidden = self.lstm(embedded, hidden)
 
@@ -153,17 +159,29 @@ def train(sentence_variable, target_variable, gold_variable, mask, encoder, deco
    
     loss = 0
 
-    mask_variable = Variable(torch.FloatTensor(mask), requires_grad=False)
-    if use_cuda:
-        mask_variable = mask_variable.cuda(device)
-
-    encoder_output, encoder_hidden = encoder(sentence_variable, encoder_hidden)
-
+    mask_variable = Variable(torch.FloatTensor(mask[0]), requires_grad=False)
+    one_mask_variable = Variable(torch.FloatTensor([1 for i in range(decoder.tags_info.all_tag_size - decoder.tags_info.tag_size)]), requires_grad=False)
+    zero_mask_variable = Variable(torch.FloatTensor([0 for i in range(decoder.tags_info.all_tag_size - decoder.tags_info.tag_size)]), requires_grad=False)
     decoder_input = Variable(torch.LongTensor([decoder.tags_info.tag_to_ix[SOS]]))
     if back_prop == False:
         decoder_input.volatile=True
         mask_variable.volatile=True
+        one_mask_variable.volatile=True
+        zero_mask_variable.volatil=True
 
+    rest_mask_variable_list = []
+    for i in range(len(mask[1])):
+        if mask[1][i] == 1:
+            rest_mask_variable_list.append(one_mask_variable)
+        elif mask[1][i] == 0:
+            rest_mask_variable_list.append(zero_mask_variable)
+        else:
+            assert False
+
+    mask_variable = torch.cat((mask_variable, torch.cat(rest_mask_variable_list, 0)), 1)
+    encoder_output, encoder_hidden = encoder(sentence_variable, encoder_hidden)
+
+    mask_variable = mask_variable.cuda(device) if use_cuda else mask_variable
     decoder_input = decoder_input.cuda(device) if use_cuda else decoder_input
     decoder_input = torch.cat((decoder_input, target_variable))
     
@@ -249,13 +267,14 @@ def trainIters(trn_instances, dev_instances, tst_instances, encoder, decoder, pr
     #===============================
     sentence_variables = []
     target_variables = []
-    #masks= []
+    masks= []
     gold_variables = []
 
-    #for instance in trn_instances:
+    for instance in trn_instances:
         #print "===========",len(mask_variables)
-    #    decoder.mask_pool.reset()
-    #    masks.append(decoder.mask_pool.get_all_mask(instance[3]))
+        decoder.mask_pool.reset()
+        tmp = decoder.mask_pool.get_all_mask(instance[3])
+        masks.append(([ x[:-1] for x in tmp],[ x[-1] for x in tmp]))
 
     for instance in trn_instances:
         sentence_variable = []
@@ -280,12 +299,13 @@ def trainIters(trn_instances, dev_instances, tst_instances, encoder, decoder, pr
 #==================================
     dev_sentence_variables = []
     dev_target_variables = []
-    #dev_masks = []
+    dev_masks = []
     dev_gold_variables = []
 
-    #for instance in dev_instances:
-    #    decoder.mask_pool.reset()
-    #    dev_masks.append(decoder.mask_pool.get_all_mask(instance[3]))
+    for instance in dev_instances:
+        decoder.mask_pool.reset()
+        tmp = decoder.mask_pool.get_all_mask(instance[3])
+        dev_masks.append(([ x[:-1] for x in tmp],[ x[-1] for x in tmp]))
 
     for instance in dev_instances:
         dev_sentence_variable = []
@@ -346,9 +366,7 @@ def trainIters(trn_instances, dev_instances, tst_instances, encoder, decoder, pr
         if idx == len(trn_instances):
             idx = 0       
 
-        decoder.mask_pool.reset()
-        mask = decoder.mask_pool.get_all_mask(trn_instances[idx][3])
-        loss = train(sentence_variables[idx], target_variables[idx], gold_variables[idx], mask, encoder, decoder, encoder_optimizer, decoder_optimizer, criterion)
+        loss = train(sentence_variables[idx], target_variables[idx], gold_variables[idx], masks[idx], encoder, decoder, encoder_optimizer, decoder_optimizer, criterion)
         print_loss_total += loss
 
         if iter % print_every == 0:
@@ -363,9 +381,7 @@ def trainIters(trn_instances, dev_instances, tst_instances, encoder, decoder, pr
             while dev_idx < len(dev_instances):
                 if use_cuda:
                     torch.cuda.empty_cache()
-                decoder.mask_pool.reset()
-                dev_mask = decoder.mask_pool.get_all_mask(dev_instances[dev_idx][3])
-                dev_loss += train(dev_sentence_variables[dev_idx], dev_target_variables[dev_idx], dev_gold_variables[dev_idx], dev_mask, encoder, decoder, encoder_optimizer, decoder_optimizer, criterion, back_prop=False)
+                dev_loss += train(dev_sentence_variables[dev_idx], dev_target_variables[dev_idx], dev_gold_variables[dev_idx], dev_masks[dev_idx], encoder, decoder, encoder_optimizer, decoder_optimizer, criterion, back_prop=False)
                 dev_idx += 1
             print('dev loss %.10f' % (dev_loss/len(dev_instances)))
             evaluate(dev_sentence_variables, dev_target_variables, encoder, decoder, dev_out_dir+str(int(iter/evaluate_every))+".drs")

@@ -43,7 +43,10 @@ class StructuredMask:
 		#print res[-1]
 		for ix in inputs:
 			#print "ix", ix, self.tags_info.ix_to_tag[ix]
-			assert res[-1][ix] != self.mask
+			if ix > self.tags_info.tag_size:
+				res[-1][-1] != self.mask
+			else:
+				assert res[-1][ix] != self.mask
 			self.update(ix)
 			#self._print_state()
 			res.append(self.get_step_mask())
@@ -421,7 +424,7 @@ class StructuredMask:
 		return [self.need for i in range(size)]
 
 	def _get_rest_zeros(self):
-		return [ self.mask for i in range(self.tags_info.all_tag_size - self.tags_info.tag_size)]
+		return [ self.mask ]
 	def _get_rest_ones(self):
-		return [ self.need for i in range(self.tags_info.all_tag_size - self.tags_info.tag_size)]
+		return [ self.need ]
 
