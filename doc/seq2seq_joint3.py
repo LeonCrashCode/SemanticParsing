@@ -1,4 +1,4 @@
-    # -*- coding: utf-8 -*-
+# -*- coding: utf-8 -*-
 import re
 import random
 
@@ -320,7 +320,18 @@ class AttnDecoderRNN(nn.Module):
             return Variable(torch.LongTensor(tokens), volatile=True), hidden
 
 
-def train(sentence_variable, input_variables, gold_variables, mask_variables, encoder, decoder, encoder_optimizer, decoder_optimizer, criterion, back_prop=True):
+#def train(sentence_variable, input_variables, gold_variables, mask_variables, encoder, decoder, encoder_optimizer, decoder_optimizer, criterion, back_prop=True):
+def train(sentence_variable, input_variables, gold_variables, masks, encoder, decoder, encoder_optimizer, decoder_optimizer, criterion, back_prop=True):
+    mask_variables = []
+    if use_cuda:
+	mask_variables.append(Variable(torch.FloatTensor(masks[0]), requires_grad=False).cuda(device))
+	mask_variables.append(Variable(torch.FloatTensor(masks[1]), requires_grad=False).cuda(device))
+	mask_variables.append(Variable(torch.FloatTensor(masks[2]), requires_grad=False).cuda(device))
+    else:
+	mask_variables.append(Variable(torch.FloatTensor(masks[0]), requires_grad=False))
+	mask_variables.append(Variable(torch.FloatTensor(masks[1]), requires_grad=False))
+	mask_variables.append(Variable(torch.FloatTensor(masks[2]), requires_grad=False))
+
     encoder_optimizer.zero_grad()
     decoder_optimizer.zero_grad()
 
@@ -521,8 +532,11 @@ def trainIters(trn_instances, dev_instances, tst_instances, encoder, decoder, pr
     mask2_variables = []
     mask3_variables = []
 
+    masks1 = []
+    masks2 = []
+    masks3 = []
     for instance in trn_instances:
-        #print len(sentence_variables)
+        print "====", len(sentence_variables)
         sentence_variables.append([])
         if use_cuda:
             sentence_variables[-1].append(Variable(instance[0]).cuda(device))
@@ -636,15 +650,16 @@ def trainIters(trn_instances, dev_instances, tst_instances, encoder, decoder, pr
             decoder.var_mask_pool.update(idx)
             if (idx >= 13 and idx < decoder.tags_info.k_rel_start) or idx >= decoder.tags_info.tag_size:
                 for idxx in instance[6][p]:
-                    #print idxx
+                    #print idxx, decoder.tags_info.ix_to_tag[idxx] 
                     mask3.append(decoder.var_mask_pool.get_step_mask())
                     decoder.var_mask_pool.update(idxx)
                     assert mask3[-1][idxx] == decoder.var_mask_pool.need
-                    #decoder.mask_pool._print_state()
+                    #decoder.var_mask_pool._print_state()
                 mask3.append(decoder.var_mask_pool.get_step_mask())
                 p += 1
         assert p == len(instance[6])
 
+	"""
         if use_cuda:
             mask1_variables.append(Variable(torch.FloatTensor(mask1), requires_grad=False).cuda(device))
             mask2_variables.append(Variable(torch.FloatTensor(mask2), requires_grad=False).cuda(device))
@@ -653,6 +668,10 @@ def trainIters(trn_instances, dev_instances, tst_instances, encoder, decoder, pr
             mask1_variables.append(Variable(torch.FloatTensor(mask1), requires_grad=False))
             mask2_variables.append(Variable(torch.FloatTensor(mask2), requires_grad=False))
             mask3_variables.append(Variable(torch.FloatTensor(mask3), requires_grad=False))
+	"""
+	masks1.append(mask1)
+	masks2.append(mask2)
+	masks3.append(mask3)
 
 #==================================
     dev_sentence_variables = []
@@ -669,8 +688,11 @@ def trainIters(trn_instances, dev_instances, tst_instances, encoder, decoder, pr
     dev_mask2_variables = []
     dev_mask3_variables = []
 
+    dev_masks1 = []
+    dev_masks2 = []
+    dev_masks3 = []
     for instance in dev_instances:
-        #print len(sentence_variables)
+        print "====", len(dev_sentence_variables)
         dev_sentence_variables.append([])
         if use_cuda:
             dev_sentence_variables[-1].append(Variable(instance[0], volatile=True).cuda(device))
@@ -791,6 +813,7 @@ def trainIters(trn_instances, dev_instances, tst_instances, encoder, decoder, pr
                 p += 1
         assert p == len(instance[6])
 
+	"""
         if use_cuda:
             dev_mask1_variables.append(Variable(torch.FloatTensor(mask1), volatile=True).cuda(device))
             dev_mask2_variables.append(Variable(torch.FloatTensor(mask2), volatile=True).cuda(device))
@@ -799,11 +822,15 @@ def trainIters(trn_instances, dev_instances, tst_instances, encoder, decoder, pr
             dev_mask1_variables.append(Variable(torch.FloatTensor(mask1), volatile=True))
             dev_mask2_variables.append(Variable(torch.FloatTensor(mask2), volatile=True))
             dev_mask3_variables.append(Variable(torch.FloatTensor(mask3), volatile=True))
-
+	"""
+	dev_masks1.append(mask1)
+	dev_masks2.append(mask2)
+	dev_masks3.append(mask3)
 #====================================== test
     tst_sentence_variables = []
 
     for instance in tst_instances:
+	print "====",len(tst_sentence_variables)
         tst_sentence_variable = []
         if use_cuda:
             tst_sentence_variable.append(Variable(instance[0], volatile=True).cuda(device))
@@ -831,8 +858,9 @@ def trainIters(trn_instances, dev_instances, tst_instances, encoder, decoder, pr
         iter += 1
         if idx == len(trn_instances):
             idx = 0       
-        loss1, loss2, loss3 = train(sentence_variables[idx], (input1_variables[idx], input2_variables[idx], input3_variables[idx]), (gold1_variables[idx], gold2_variables[idx], gold3_variables[idx]), (mask1_variables[idx], mask2_variables[idx], mask3_variables[idx]), encoder, decoder, encoder_optimizer, decoder_optimizer, criterion)
-        print_loss_total1 += loss1
+        #loss1, loss2, loss3 = train(sentence_variables[idx], (input1_variables[idx], input2_variables[idx], input3_variables[idx]), (gold1_variables[idx], gold2_variables[idx], gold3_variables[idx]), (mask1_variables[idx], mask2_variables[idx], mask3_variables[idx]), encoder, decoder, encoder_optimizer, decoder_optimizer, criterion)
+        loss1, loss2, loss3 = train(sentence_variables[idx], (input1_variables[idx], input2_variables[idx], input3_variables[idx]), (gold1_variables[idx], gold2_variables[idx], gold3_variables[idx]), (masks1[idx], masks2[idx], masks3[idx]), encoder, decoder, encoder_optimizer, decoder_optimizer, criterion)
+	print_loss_total1 += loss1
         print_loss_total2 += loss2
         print_loss_total3 += loss3
         print_loss_total += (loss1 + loss2 + loss3)
@@ -859,7 +887,8 @@ def trainIters(trn_instances, dev_instances, tst_instances, encoder, decoder, pr
             while dev_idx < len(dev_instances):
                 if use_cuda:
                     torch.cuda.empty_cache()
-                a, b, c = train(dev_sentence_variables[dev_idx], (dev_input1_variables[dev_idx], dev_input2_variables[dev_idx], dev_input3_variables[dev_idx]), (dev_gold1_variables[dev_idx], dev_gold2_variables[dev_idx], dev_gold3_variables[dev_idx]), (dev_mask1_variables[dev_idx], dev_mask2_variables[dev_idx], dev_mask3_variables[dev_idx]), encoder, decoder, encoder_optimizer, decoder_optimizer, criterion, back_prop=False)
+                #a, b, c = train(dev_sentence_variables[dev_idx], (dev_input1_variables[dev_idx], dev_input2_variables[dev_idx], dev_input3_variables[dev_idx]), (dev_gold1_variables[dev_idx], dev_gold2_variables[dev_idx], dev_gold3_variables[dev_idx]), (dev_mask1_variables[dev_idx], dev_mask2_variables[dev_idx], dev_mask3_variables[dev_idx]), encoder, decoder, encoder_optimizer, decoder_optimizer, criterion, back_prop=False)
+		a, b, c = train(dev_sentence_variables[dev_idx], (dev_input1_variables[dev_idx], dev_input2_variables[dev_idx], dev_input3_variables[dev_idx]), (dev_gold1_variables[dev_idx], dev_gold2_variables[dev_idx], dev_gold3_variables[dev_idx]), (dev_masks1[dev_idx], dev_masks2[dev_idx], dev_masks3[dev_idx]), encoder, decoder, encoder_optimizer, decoder_optimizer, criterion, back_prop=False)
                 dev_loss1 += a
                 dev_loss2 += b
                 dev_loss3 += c
@@ -1035,5 +1064,5 @@ if use_cuda:
 if len(sys.argv) == 5 and sys.argv[-1] == "test":
     test(dev_instances, tst_instances, encoder, attn_decoder)
 else:
-    trainIters(trn_instances, dev_instances, tst_instances, encoder, attn_decoder, print_every=1000, evaluate_every=50000, learning_rate=0.0005)
+    trainIters(trn_instances, dev_instances, tst_instances, encoder, attn_decoder, print_every=50, evaluate_every=50000, learning_rate=0.0005)
 

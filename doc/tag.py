@@ -4,10 +4,10 @@ import re
 class Tag:
 	def __init__(self, filename, lemmas):
 		self.filename = filename
-
-		# 32 102 165 56 53
+		
+		## 32 27 165 56 53
 		self.MAX_KV = 35
-		self.MAX_PV = 105
+		self.MAX_PV = 30
 		self.MAX_XV = 170
 		self.MAX_EV = 60
 		self.MAX_SV = 55
@@ -126,7 +126,6 @@ class Tag:
 			self.tag_to_ix[lemma+"("] = len(self.tag_to_ix)
 			self.ix_to_lemma.append(lemma+"(")
 		self.all_tag_size = len(self.tag_to_ix)
-
 	def type(self, string):
 		if string in self.ix_to_tag:
 			return -2, self.tag_to_ix[string]
